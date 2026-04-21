@@ -418,26 +418,34 @@ function fmtInt(n) { return Math.ceil(n).toLocaleString('es-MX'); }
 function renderResults() {
   const p = getP();
 
-  // Acumular totales
+  // Acumular totales — excavación separada por tipo de elemento
   let tot = {
-    volExcNat: 0, volII_nat: 0, volIII_nat: 0,
-    volII_abund: 0, volIII_abund: 0,
+    volExcNat: 0,
+    // Zapatas + corridas: estratos Tipo II / III
+    zapII_nat: 0, zapIII_nat: 0, zapII_abund: 0, zapIII_abund: 0,
+    // Contratrabes: cepa Tipo II-A + 30%
+    ctExcNat: 0, ctExcAbund: 0,
     m2Afinar: 0, volMejora: 0,
     totAreaPlant: 0, volPlant: 0,
     volZap: 0, volDado: 0, volConcreto: 0,
     m2Impermeab: 0, volRelleno: 0,
   };
 
-  // Por tipo de zapata (para partida de piezas)
+  // Por clave (para partida de piezas)
   const porClave = {};
 
   zapatas.forEach(z => {
     const c = calcZapata(z, p);
-    tot.volExcNat   += c.volExcNat;
-    tot.volII_nat   += c.volII_nat;
-    tot.volIII_nat  += c.volIII_nat;
-    tot.volII_abund += c.volII_abund;
-    tot.volIII_abund += c.volIII_abund;
+    tot.volExcNat    += c.volExcNat;
+    if (z.tipo === 'contratrabe') {
+      tot.ctExcNat   += c.volExcNat;
+      tot.ctExcAbund += c.volExcNat * 1.30;
+    } else {
+      tot.zapII_nat    += c.volII_nat;
+      tot.zapIII_nat   += c.volIII_nat;
+      tot.zapII_abund  += c.volII_abund;
+      tot.zapIII_abund += c.volIII_abund;
+    }
     tot.m2Afinar     += c.m2Afinar;
     tot.volMejora    += c.volMejora;
     tot.totAreaPlant += c.totAreaPlant;
@@ -450,12 +458,11 @@ function renderResults() {
 
     const key = z.clave;
     if (!porClave[key]) porClave[key] = { ...z, volZap: 0, volDado: 0, volConcreto: 0 };
-    porClave[key].volZap     += c.volZap;
-    porClave[key].volDado    += c.volDado;
+    porClave[key].volZap      += c.volZap;
+    porClave[key].volDado     += c.volDado;
     porClave[key].volConcreto += c.volConcreto;
   });
 
-  const volExcTotal = tot.volII_abund + tot.volIII_abund;
   const viajes = Math.ceil(tot.volExcNat / p.camion);
 
   const volConcretoTotal = tot.volZap + tot.volDado + tot.volPlant;
@@ -468,7 +475,7 @@ function renderResults() {
     </div>
     <div class="total-card accent-amber">
       <div class="total-label">Vol. exc. c/abundamiento</div>
-      <div class="total-value">${fmt(tot.volII_abund + tot.volIII_abund)}<span class="total-unit">m³</span></div>
+      <div class="total-value">${fmt(tot.zapII_abund + tot.zapIII_abund + tot.ctExcAbund)}<span class="total-unit">m³</span></div>
     </div>
     <div class="total-card accent-blue">
       <div class="total-label">Vol. relleno compactado</div>
@@ -524,16 +531,22 @@ function renderResults() {
     <div class="partida-group">
       <div class="partida-group-title">Excavación</div>
       <div class="partida-row">
-        <div class="partida-desc">Excavación a máquina en material Tipo II-A, de ${fmt(p.iiIni,2)} a ${fmt(p.iiFin,2)} m de profundidad + ${p.abundII}% abundamiento</div>
-        <div class="partida-val ${tot.volII_abund===0?'zero':''}">${fmt(tot.volII_abund)}</div>
+        <div class="partida-desc">Excavación a máquina en material Tipo II-A, de ${fmt(p.iiIni,2)} a ${fmt(p.iiFin,2)} m de profundidad + ${p.abundII}% abundamiento (zapatas)</div>
+        <div class="partida-val ${tot.zapII_abund===0?'zero':''}">${fmt(tot.zapII_abund)}</div>
         <div class="partida-unit">m³</div>
-        <div class="partida-sub">nat: ${fmt(tot.volII_nat)} m³</div>
+        <div class="partida-sub">nat: ${fmt(tot.zapII_nat)} m³</div>
       </div>
       <div class="partida-row">
-        <div class="partida-desc">Excavación a máquina en material Tipo III-A, de ${fmt(p.iiFin,2)} a ${fmt(p.iiiFin,2)} m de profundidad + ${p.abundIII}% abundamiento</div>
-        <div class="partida-val ${tot.volIII_abund===0?'zero':''}">${fmt(tot.volIII_abund)}</div>
+        <div class="partida-desc">Excavación a máquina en material Tipo III-A, de ${fmt(p.iiFin,2)} a ${fmt(p.iiiFin,2)} m de profundidad + ${p.abundIII}% abundamiento (zapatas)</div>
+        <div class="partida-val ${tot.zapIII_abund===0?'zero':''}">${fmt(tot.zapIII_abund)}</div>
         <div class="partida-unit">m³</div>
-        <div class="partida-sub">nat: ${fmt(tot.volIII_nat)} m³</div>
+        <div class="partida-sub">nat: ${fmt(tot.zapIII_nat)} m³</div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Excavación de cepa a máquina en material Tipo II-A, de 0.00 a -1.00 m de profundidad + 30% abundamiento, incluye: mano de obra, equipo y herramienta (contratrabes)</div>
+        <div class="partida-val ${tot.ctExcAbund===0?'zero':''}">${fmt(tot.ctExcAbund)}</div>
+        <div class="partida-unit">m³</div>
+        <div class="partida-sub">nat: ${fmt(tot.ctExcNat)} m³</div>
       </div>
       <div class="partida-row highlight">
         <div class="partida-desc">Afine, nivelación y compactación del fondo de excavación con bailarina</div>
