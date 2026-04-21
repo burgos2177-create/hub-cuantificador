@@ -502,10 +502,12 @@ function renderResults() {
     const isLineal = z.tipo === 'corrida' || isCT;
     const unidad = isLineal ? 'm' : 'pza';
     const nombre = isCT ? 'Contratrabe' : 'Zapata';
+    // Para contratrabe, largo = 1 m unitario; cant ya son los ml totales
+    const largoDisplay = isCT ? 1.0 : z.largo;
     const dimStr = isLineal
-      ? `${fmt(z.largo,2)} m long. × ${fmt(z.ancho,2)} m base × ${fmt(z.peralte,2)} m alt.`
+      ? `${fmt(largoDisplay,2)} m long. × ${fmt(z.ancho,2)} m base × ${fmt(z.peralte,2)} m alt.`
       : `${fmt(z.largo,2)} × ${fmt(z.ancho,2)} × ${fmt(z.peralte,2)} m`;
-    const cantStr = isLineal ? `${fmt(z.largo * z.cant, 2)}` : `${z.cant}`;
+    const cantStr = isCT ? `${fmt(z.cant, 2)}` : isLineal ? `${fmt(largoDisplay * z.cant, 2)}` : `${z.cant}`;
     return `
       <div class="partida-row">
         <div class="partida-desc">${nombre} ${z.clave} — ${dimStr}, f'c=250 kg/cm²</div>
