@@ -371,12 +371,18 @@ function renderTable() {
     el.addEventListener('input', () => {
       const i = parseInt(el.dataset.i);
       const f = el.dataset.f;
-      if (f === 'clave' || f === 'tipo') {
+      if (f === 'tipo') {
         zapatas[i][f] = el.value;
+        // Tipo cambia la estructura de la fila (celdas bloqueadas, etc.) → re-render completo
+        renderTable();
+      } else if (f === 'clave') {
+        zapatas[i][f] = el.value;
+        // Solo texto, no afecta cálculos
       } else {
         zapatas[i][f] = parseFloat(el.value) || 0;
+        // Solo actualizar celdas calculadas de esta fila, sin destruir el DOM
+        updateRowComputed(i);
       }
-      renderTable();
       renderResults();
     });
   });
@@ -388,6 +394,21 @@ function renderTable() {
       renderResults();
     });
   });
+}
+
+// ─── Actualizar celdas calculadas sin re-renderizar la tabla ─────────────────
+function updateRowComputed(i) {
+  const p = getP();
+  const c = calcZapata(zapatas[i], p);
+  const row = document.querySelectorAll('#zap-body tr')[i];
+  if (!row) return;
+  const computed = row.querySelectorAll('td.computed');
+  if (computed[0]) computed[0].textContent = c.totAreaExc.toFixed(2);
+  if (computed[1]) computed[1].textContent = c.volExcNat.toFixed(3);
+}
+
+function updateAllRowsComputed() {
+  zapatas.forEach((_, i) => updateRowComputed(i));
 }
 
 // ─── Render resultados ────────────────────────────────────────────────────────
@@ -592,7 +613,7 @@ document.getElementById('add-btn').addEventListener('click', () => {
 });
 
 document.querySelectorAll('#params-panel input').forEach(el => {
-  el.addEventListener('input', () => { renderTable(); renderResults(); });
+  el.addEventListener('input', () => { updateAllRowsComputed(); renderResults(); });
 });
 
 // ─── Guardar / Cargar JSON ────────────────────────────────────────────────────
