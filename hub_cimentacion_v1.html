@@ -291,8 +291,9 @@ function calcZapata(z, p) {
   const excLargo = isContratrabe ? largo
                  : isCorrida     ? largo
                  :                 largo + p.sob;
-  const excAncho = isContratrabe ? z.ancho + 0.10
-                 :                 z.ancho + p.sob;
+  // Contratrabe: cuchara mín. 30 cm → si ancho < 30 cm, cepa = 30 cm; si no, ancho + 5 cm c/lado
+  const excAncho = isContratrabe ? (z.ancho < 0.30 ? 0.30 : z.ancho + 0.10)
+                 :                  z.ancho + p.sob;
   const areaExc    = excLargo * excAncho;
   const totAreaExc = areaExc * z.cant;
 
