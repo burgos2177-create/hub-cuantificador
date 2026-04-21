@@ -377,7 +377,7 @@ function renderTable() {
         renderTable();
       } else if (f === 'clave') {
         zapatas[i][f] = el.value;
-        // Solo texto, no afecta cálculos
+        return; // no afecta cálculos ni partidas → no tocar el DOM
       } else {
         zapatas[i][f] = parseFloat(el.value) || 0;
         // Solo actualizar celdas calculadas de esta fila, sin destruir el DOM
