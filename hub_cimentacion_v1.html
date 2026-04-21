@@ -88,6 +88,16 @@
 
 .tip { font-size: 11.5px; color: var(--color-text-tertiary); margin-top: 4px; }
 
+.inp-sm[disabled] { opacity: 0.4; cursor: not-allowed; background: var(--color-background-tertiary); }
+.inp-sm.locked { opacity: 0.5; cursor: not-allowed; pointer-events: none; background: var(--color-background-tertiary); }
+.td-locked { opacity: 0.35; }
+
+.toolbar { display: flex; gap: 8px; margin-bottom: 1rem; }
+.tool-btn { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 12px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+.tool-btn:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+.tool-btn.primary { border-color: #1D9E75; color: #1D9E75; }
+.tool-btn.primary:hover { background: #E1F5EE; }
+
 @media (max-width: 600px) {
   .sidebar { width: 52px; min-width: 52px; }
   .nav-item span:not(.nav-icon), .badge, .sidebar-title, .sub-nav { display: none; }
@@ -119,6 +129,14 @@
     <div class="module-header">
       <div class="module-title">Zapatas — cuantificación de cimentación</div>
       <div class="module-desc">Volúmenes de excavación, concreto, relleno e impermeabilización a partir de la matriz de zapatas</div>
+    </div>
+
+    <div class="toolbar">
+      <button class="tool-btn primary" id="btn-save">💾 Guardar cuantificación</button>
+      <label class="tool-btn" style="margin:0;">
+        📂 Cargar cuantificación
+        <input type="file" id="inp-load" accept=".json" style="display:none;">
+      </label>
     </div>
 
     <!-- Parámetros globales -->
@@ -226,10 +244,12 @@ function calcZapata(z, p) {
   const isCorrida     = z.tipo === 'corrida';
   const isContratrabe = z.tipo === 'contratrabe';
   const isLineal      = isCorrida || isContratrabe; // excava en franja, sin dado
+  // Contratrabe: largo = 1 m unitario; cant representa los ml totales
+  const largo = isContratrabe ? 1.0 : z.largo;
 
   // Área de excavación
   // Aislada: agrega sobreancho en ambas dimensiones; lineal: solo en ancho
-  const excLargo   = isLineal ? z.largo : z.largo + p.sob;
+  const excLargo   = isLineal ? largo : largo + p.sob;
   const excAncho   = z.ancho + p.sob;
   const areaExc    = excLargo * excAncho;
   const totAreaExc = areaExc * z.cant;
@@ -252,7 +272,7 @@ function calcZapata(z, p) {
   // Afinar: fondo + paredes
   // Aislada: 4 caras; lineal: 2 caras longitudinales
   const perimExc      = isLineal
-    ? 2 * z.largo * z.cant
+    ? 2 * largo * z.cant
     : 2 * (excLargo + excAncho) * z.cant;
   const m2AfinarFondo   = totAreaExc;
   const m2AfinarParedes = perimExc * profExc;
@@ -262,12 +282,12 @@ function calcZapata(z, p) {
   const volMejora = totAreaExc * p.espMejora;
 
   // Plantilla (huella neta del elemento)
-  const areaPlant    = z.largo * z.ancho;
+  const areaPlant    = largo * z.ancho;
   const totAreaPlant = areaPlant * z.cant;
   const volPlant     = totAreaPlant * p.espPlant;
 
   // Volumen del elemento estructural
-  const volZap = z.largo * z.ancho * z.peralte * z.cant;
+  const volZap = largo * z.ancho * z.peralte * z.cant;
 
   // Dado — solo aplica para zapatas aisladas
   const volDado = (!isLineal && z.anchoDado > 0 && z.altDado > 0)
@@ -283,11 +303,11 @@ function calcZapata(z, p) {
   let m2Impermeab;
   if (isLineal) {
     // fondo + 2 caras longitudinales (sin topes ni dado)
-    m2Impermeab = (z.ancho * z.largo + 2 * z.peralte * z.largo) * z.cant;
+    m2Impermeab = (z.ancho * largo + 2 * z.peralte * largo) * z.cant;
   } else {
     // tapa inferior + 4 caras laterales + tapa superior (descontando huella dado) + 4 caras dado
-    const tapaSup = z.largo * z.ancho - z.anchoDado * z.anchoDado;
-    m2Impermeab = (z.largo * z.ancho + 2 * (z.largo + z.ancho) * z.peralte + tapaSup) * z.cant + m2ImpDado;
+    const tapaSup = largo * z.ancho - z.anchoDado * z.anchoDado;
+    m2Impermeab = (largo * z.ancho + 2 * (largo + z.ancho) * z.peralte + tapaSup) * z.cant + m2ImpDado;
   }
 
   // Relleno compactado = volumen excavado - (mejoramiento + plantilla + concreto)
@@ -327,13 +347,19 @@ function renderTable() {
           <option value="contratrabe" ${z.tipo==='contratrabe'?'selected':''}>Contratrabe</option>
         </select>
       </td>
-      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="largo"    value="${z.largo.toFixed(2)}"></td>
+      <td class="num">${z.tipo==='contratrabe'
+          ? `<input class="inp-sm inp-dim locked" type="number" value="1.00" tabindex="-1">`
+          : `<input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="largo" value="${z.largo.toFixed(2)}">`
+        }</td>
       <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="ancho"    value="${z.ancho.toFixed(2)}"></td>
       <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="profTotal" value="${z.profTotal.toFixed(2)}"></td>
       <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="peralte"  value="${z.peralte.toFixed(2)}"></td>
-      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="anchoDado" value="${z.anchoDado.toFixed(2)}"></td>
-      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="altDado"  value="${z.altDado.toFixed(2)}"></td>
-      <td class="num"><input class="inp-sm inp-cant" type="number" min="1" step="1"  data-i="${i}" data-f="cant"    value="${z.cant}"></td>
+      <td class="num ${z.tipo==='contratrabe'?'td-locked':''}"><input class="inp-sm inp-dim ${z.tipo==='contratrabe'?'locked':''}" type="number" min="0" step="0.05" data-i="${i}" data-f="anchoDado" value="${z.anchoDado.toFixed(2)}" tabindex="${z.tipo==='contratrabe'?-1:0}"></td>
+      <td class="num ${z.tipo==='contratrabe'?'td-locked':''}"><input class="inp-sm inp-dim ${z.tipo==='contratrabe'?'locked':''}" type="number" min="0" step="0.05" data-i="${i}" data-f="altDado"   value="${z.altDado.toFixed(2)}"  tabindex="${z.tipo==='contratrabe'?-1:0}"></td>
+      <td class="num" title="${z.tipo==='contratrabe'?'metros lineales':'piezas'}">
+        <input class="inp-sm inp-cant" type="number" min="1" step="${z.tipo==='contratrabe'?1:1}" data-i="${i}" data-f="cant" value="${z.cant}">
+        ${z.tipo==='contratrabe'?'<span style="font-size:10px;color:var(--color-text-tertiary)">ml</span>':''}
+      </td>
       <td class="num computed">${c.totAreaExc.toFixed(2)}</td>
       <td class="num computed">${c.volExcNat.toFixed(3)}</td>
       <td><button class="del-btn" data-del="${i}">✕</button></td>
@@ -567,6 +593,58 @@ document.getElementById('add-btn').addEventListener('click', () => {
 
 document.querySelectorAll('#params-panel input').forEach(el => {
   el.addEventListener('input', () => { renderTable(); renderResults(); });
+});
+
+// ─── Guardar / Cargar JSON ────────────────────────────────────────────────────
+function getParamsObj() {
+  return {
+    sob:       parseFloat(document.getElementById('p-sob').value)      || 0,
+    iiIni:     parseFloat(document.getElementById('p-ii-ini').value)   || 0,
+    iiFin:     parseFloat(document.getElementById('p-ii-fin').value)   || 0,
+    iiiFin:    parseFloat(document.getElementById('p-iii-fin').value)  || 0,
+    espMejora: parseFloat(document.getElementById('p-mejora').value)   || 0,
+    espPlant:  parseFloat(document.getElementById('p-plantilla').value)|| 0,
+    camion:    parseFloat(document.getElementById('p-camion').value)   || 7,
+  };
+}
+
+function setParamsUI(params) {
+  document.getElementById('p-sob').value       = params.sob;
+  document.getElementById('p-ii-ini').value    = params.iiIni;
+  document.getElementById('p-ii-fin').value    = params.iiFin;
+  document.getElementById('p-iii-fin').value   = params.iiiFin;
+  document.getElementById('p-mejora').value    = params.espMejora;
+  document.getElementById('p-plantilla').value = params.espPlant;
+  document.getElementById('p-camion').value    = params.camion;
+}
+
+document.getElementById('btn-save').addEventListener('click', () => {
+  const data = { version: 1, params: getParamsObj(), zapatas };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cuantificacion.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('inp-load').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.zapatas) zapatas = data.zapatas;
+      if (data.params)  setParamsUI(data.params);
+      renderTable();
+      renderResults();
+    } catch {
+      alert('El archivo no es un JSON válido.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // permite recargar el mismo archivo
 });
 
 renderTable();
