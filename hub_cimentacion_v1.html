@@ -1,0 +1,574 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.hub { display: flex; min-height: 620px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; background: var(--color-background-primary); }
+.sidebar { width: 200px; min-width: 200px; background: var(--color-background-secondary); border-right: 0.5px solid var(--color-border-tertiary); padding: 1rem 0; display: flex; flex-direction: column; gap: 2px; }
+.sidebar-title { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); padding: 0 1rem 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 1rem; cursor: pointer; font-size: 13.5px; color: var(--color-text-secondary); border-left: 2px solid transparent; transition: background 0.12s; }
+.nav-item:hover { background: var(--color-background-tertiary); color: var(--color-text-primary); }
+.nav-item.active { background: var(--color-background-primary); color: var(--color-text-primary); border-left: 2px solid #1D9E75; font-weight: 500; }
+.nav-item.coming { opacity: 0.4; cursor: default; }
+.nav-icon { font-size: 14px; width: 18px; text-align: center; }
+.badge { margin-left: auto; font-size: 10px; background: var(--color-background-tertiary); color: var(--color-text-tertiary); padding: 2px 6px; border-radius: 99px; }
+.sub-nav { padding-left: 1.5rem; }
+.sub-item { display: flex; align-items: center; gap: 8px; padding: 7px 1rem 7px 0; cursor: pointer; font-size: 13px; color: var(--color-text-secondary); border-left: 2px solid transparent; }
+.sub-item:hover { color: var(--color-text-primary); }
+.sub-item.active { color: #0F6E56; font-weight: 500; border-left: 2px solid #5DCAA5; padding-left: 8px; }
+
+.main { flex: 1; padding: 1.5rem; overflow-y: auto; overflow-x: auto; min-width: 0; }
+.module-header { margin-bottom: 1rem; border-bottom: 0.5px solid var(--color-border-tertiary); padding-bottom: 0.75rem; }
+.module-title { font-size: 18px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 3px; }
+.module-desc { font-size: 13px; color: var(--color-text-secondary); }
+
+.section-label { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; margin-top: 1rem; }
+.divider { height: 0.5px; background: var(--color-border-tertiary); margin: 1rem 0; }
+
+/* Parámetros globales */
+.params-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); }
+.field input, .field select { font-size: 13px; padding: 6px 9px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-secondary); color: var(--color-text-primary); width: 100%; }
+.field input:focus, .field select:focus { outline: none; border-color: #1D9E75; box-shadow: 0 0 0 2px rgba(29,158,117,0.15); }
+.unit-hint { font-size: 11px; color: var(--color-text-tertiary); }
+.params-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.params-row .field { flex: 1; min-width: 110px; }
+
+/* Tabla de zapatas */
+.table-wrap { overflow-x: auto; }
+.zap-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 880px; }
+.zap-table th { font-size: 10.5px; font-weight: 500; color: var(--color-text-tertiary); text-align: left; padding: 6px 8px; border-bottom: 0.5px solid var(--color-border-tertiary); white-space: nowrap; background: var(--color-background-secondary); }
+.zap-table th.num { text-align: right; }
+.zap-table th.ctr { text-align: center; }
+.zap-table td { padding: 6px 8px; border-bottom: 0.5px solid var(--color-border-tertiary); vertical-align: middle; color: var(--color-text-primary); }
+.zap-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--color-text-secondary); font-size: 12px; }
+.zap-table td.computed { background: color-mix(in srgb, #1D9E75 5%, var(--color-background-primary)); }
+.zap-table tr:hover td { background: var(--color-background-secondary); }
+.zap-table tr:hover td.computed { background: color-mix(in srgb, #1D9E75 8%, var(--color-background-secondary)); }
+
+/* Inputs de tabla */
+.inp-sm { font-size: 12.5px; padding: 4px 7px; border-radius: 5px; border: 0.5px solid var(--color-border-secondary); background: var(--color-background-secondary); color: var(--color-text-primary); }
+.inp-sm:focus { outline: none; border-color: #1D9E75; }
+.inp-clave { width: 62px; }
+.inp-tipo { width: 84px; }
+.inp-dim { width: 68px; text-align: right; }
+.inp-cant { width: 52px; text-align: right; }
+.del-btn { font-size: 11px; padding: 3px 7px; border-radius: 5px; border: 0.5px solid var(--color-border-tertiary); background: transparent; color: var(--color-text-tertiary); cursor: pointer; }
+.del-btn:hover { border-color: #E24B4A; color: #E24B4A; }
+.add-btn { font-size: 12px; padding: 5px 12px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); cursor: pointer; margin-top: 10px; }
+.add-btn:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+
+/* Partidas */
+.partidas { display: flex; flex-direction: column; gap: 6px; margin-top: 0.5rem; }
+.partida-group { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); overflow: hidden; }
+.partida-group-title { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; padding: 6px 12px; background: var(--color-background-secondary); color: var(--color-text-tertiary); border-bottom: 0.5px solid var(--color-border-tertiary); }
+.partida-row { display: flex; align-items: baseline; gap: 8px; padding: 7px 12px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.partida-row:last-child { border-bottom: none; }
+.partida-row.highlight { background: color-mix(in srgb, #1D9E75 6%, var(--color-background-primary)); }
+.partida-desc { flex: 1; font-size: 12.5px; color: var(--color-text-primary); line-height: 1.4; }
+.partida-val { font-size: 14px; font-weight: 500; color: var(--color-text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 80px; text-align: right; }
+.partida-val.zero { color: var(--color-text-tertiary); }
+.partida-unit { font-size: 11px; color: var(--color-text-tertiary); min-width: 28px; }
+.partida-sub { font-size: 11px; color: var(--color-text-tertiary); white-space: nowrap; }
+
+/* Totales destacados */
+.totals-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 0.5rem; }
+.total-card { flex: 1; min-width: 120px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 13px; }
+.total-card.accent-green { background: #E1F5EE; border: 0.5px solid #9FE1CB; }
+.total-card.accent-amber { background: #FAEEDA; border: 0.5px solid #FAC775; }
+.total-card.accent-blue { background: #E8F0FD; border: 0.5px solid #93B4F5; }
+.total-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 2px; }
+.accent-green .total-label { color: #0F6E56; }
+.accent-amber .total-label { color: #854F0B; }
+.accent-blue .total-label { color: #1A3C8F; }
+.total-value { font-size: 19px; font-weight: 500; color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+.accent-green .total-value { color: #085041; }
+.accent-amber .total-value { color: #633806; }
+.accent-blue .total-value { color: #0D2463; }
+.total-unit { font-size: 11px; color: var(--color-text-tertiary); margin-left: 2px; }
+
+.tip { font-size: 11.5px; color: var(--color-text-tertiary); margin-top: 4px; }
+
+@media (max-width: 600px) {
+  .sidebar { width: 52px; min-width: 52px; }
+  .nav-item span:not(.nav-icon), .badge, .sidebar-title, .sub-nav { display: none; }
+}
+</style>
+
+<h2 class="sr-only">Hub cuantificador de obra civil — cimentación por zapatas</h2>
+
+<div class="hub">
+  <div class="sidebar">
+    <div class="sidebar-title">Módulos</div>
+    <div class="nav-item active"><span class="nav-icon">▭</span><span>Zapatas</span></div>
+    <div class="sub-nav">
+      <div class="sub-item active">Cimentación</div>
+      <div class="sub-item">Excavación</div>
+    </div>
+    <div class="nav-item coming"><span class="nav-icon">⬛</span><span>Cepas</span></div>
+    <div class="sub-nav" style="opacity:0.4;pointer-events:none;">
+      <div class="sub-item">Afine</div>
+      <div class="sub-item">Excavación</div>
+    </div>
+    <div class="nav-item coming"><span class="nav-icon">⬜</span><span>Dalas</span><span class="badge">pronto</span></div>
+    <div class="nav-item coming"><span class="nav-icon">◫</span><span>Muros</span><span class="badge">pronto</span></div>
+    <div class="nav-item coming"><span class="nav-icon">⊞</span><span>Losas</span><span class="badge">pronto</span></div>
+    <div class="nav-item coming"><span class="nav-icon">◈</span><span>Trazo</span><span class="badge">pronto</span></div>
+  </div>
+
+  <div class="main">
+    <div class="module-header">
+      <div class="module-title">Zapatas — cuantificación de cimentación</div>
+      <div class="module-desc">Volúmenes de excavación, concreto, relleno e impermeabilización a partir de la matriz de zapatas</div>
+    </div>
+
+    <!-- Parámetros globales -->
+    <div class="section-label">Parámetros globales de excavación</div>
+    <div class="params-grid" id="params-panel">
+      <div class="field">
+        <label>Sobreancho excavación</label>
+        <input type="number" id="p-sob" value="0.20" step="0.05" min="0">
+        <span class="unit-hint">m (total, por dimensión)</span>
+      </div>
+      <div class="field">
+        <label>Prof. inicio Tipo II</label>
+        <input type="number" id="p-ii-ini" value="0.00" step="0.05" min="0">
+        <span class="unit-hint">m desde superficie</span>
+      </div>
+      <div class="field">
+        <label>Prof. fin Tipo II</label>
+        <input type="number" id="p-ii-fin" value="0.80" step="0.05" min="0">
+        <span class="unit-hint">m (+30% abund.)</span>
+      </div>
+      <div class="field">
+        <label>Prof. fin Tipo III</label>
+        <input type="number" id="p-iii-fin" value="1.10" step="0.05" min="0">
+        <span class="unit-hint">m (+50% abund.)</span>
+      </div>
+      <div class="field">
+        <label>Mejoramiento desplante</label>
+        <input type="number" id="p-mejora" value="0.40" step="0.05" min="0">
+        <span class="unit-hint">m de espesor</span>
+      </div>
+      <div class="field">
+        <label>Plantilla concreto</label>
+        <input type="number" id="p-plantilla" value="0.05" step="0.01" min="0">
+        <span class="unit-hint">m de espesor</span>
+      </div>
+      <div class="field">
+        <label>Capacidad camión</label>
+        <input type="number" id="p-camion" value="7" step="1" min="1">
+        <span class="unit-hint">m³ por viaje</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Matriz de zapatas</div>
+    <p class="tip">Aislada: excava perímetro completo (L+sob × A+sob). Corrida / Contratrabe: excava en franja (L × A+sob). El dado solo aplica para aisladas.</p>
+
+    <div class="table-wrap" style="margin-top:10px;">
+      <table class="zap-table">
+        <thead>
+          <tr>
+            <th>Clave</th>
+            <th>Tipo</th>
+            <th class="num">Largo / Long. (m)</th>
+            <th class="num">Ancho (m)</th>
+            <th class="num">Prof. desplante (m)</th>
+            <th class="num">Peralte zap. (m)</th>
+            <th class="num">∅ Dado (m)</th>
+            <th class="num">H. Dado (m)</th>
+            <th class="num">Cant.</th>
+            <th class="num">Área exc. (m²)</th>
+            <th class="num">Vol. exc. nat. (m³)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="zap-body"></tbody>
+      </table>
+    </div>
+    <button class="add-btn" id="add-btn">+ Agregar zapata</button>
+
+    <div class="divider"></div>
+    <div class="section-label">Totales de cimentación</div>
+    <div class="totals-row" id="totals-row"></div>
+
+    <div class="divider"></div>
+    <div class="section-label">Partidas de obra</div>
+    <div class="partidas" id="partidas"></div>
+  </div>
+</div>
+
+<script>
+// ─── Estado ───────────────────────────────────────────────────────────────────
+let zapatas = [
+  { clave: 'Z1',   tipo: 'aislada', largo: 1.10, ancho: 1.10, profTotal: 1.10, peralte: 0.25, anchoDado: 0.20, altDado: 0.75, cant: 8  },
+  { clave: 'Z2',   tipo: 'aislada', largo: 1.00, ancho: 1.00, profTotal: 1.10, peralte: 0.30, anchoDado: 0.20, altDado: 0.75, cant: 2  },
+  { clave: 'Z3',   tipo: 'aislada', largo: 0.85, ancho: 0.85, profTotal: 1.10, peralte: 0.20, anchoDado: 0.20, altDado: 0.75, cant: 20 },
+  { clave: 'ZC-1', tipo: 'corrida', largo: 27.40, ancho: 0.40, profTotal: 1.10, peralte: 0.25, anchoDado: 0,   altDado: 0,   cant: 1  },
+];
+
+function getP() {
+  return {
+    sob:       parseFloat(document.getElementById('p-sob').value)      || 0,
+    iiIni:     parseFloat(document.getElementById('p-ii-ini').value)   || 0,
+    iiFin:     parseFloat(document.getElementById('p-ii-fin').value)   || 0,
+    iiiFin:    parseFloat(document.getElementById('p-iii-fin').value)  || 0,
+    abundII:   30,
+    abundIII:  50,
+    espMejora: parseFloat(document.getElementById('p-mejora').value)   || 0,
+    espPlant:  parseFloat(document.getElementById('p-plantilla').value)|| 0,
+    camion:    parseFloat(document.getElementById('p-camion').value)   || 7,
+  };
+}
+
+// ─── Geometría ────────────────────────────────────────────────────────────────
+function calcZapata(z, p) {
+  const isCorrida     = z.tipo === 'corrida';
+  const isContratrabe = z.tipo === 'contratrabe';
+  const isLineal      = isCorrida || isContratrabe; // excava en franja, sin dado
+
+  // Área de excavación
+  // Aislada: agrega sobreancho en ambas dimensiones; lineal: solo en ancho
+  const excLargo   = isLineal ? z.largo : z.largo + p.sob;
+  const excAncho   = z.ancho + p.sob;
+  const areaExc    = excLargo * excAncho;
+  const totAreaExc = areaExc * z.cant;
+
+  // profDesplante = profundidad al fondo del elemento
+  // profExc = profundidad real de excavación (+ mejoramiento + plantilla)
+  const profDesplante = Math.max(0, z.profTotal);
+  const profExc       = profDesplante + p.espMejora + p.espPlant;
+  const volExcNat     = totAreaExc * profExc;
+
+  // Estratos de excavación
+  const espII  = Math.max(0, Math.min(p.iiFin,  profExc) - p.iiIni);
+  const espIII = Math.max(0, Math.min(p.iiiFin, profExc) - Math.max(p.iiFin, p.iiIni));
+
+  const volII_nat    = totAreaExc * espII;
+  const volIII_nat   = totAreaExc * espIII;
+  const volII_abund  = volII_nat  * (1 + p.abundII  / 100);
+  const volIII_abund = volIII_nat * (1 + p.abundIII / 100);
+
+  // Afinar: fondo + paredes
+  // Aislada: 4 caras; lineal: 2 caras longitudinales
+  const perimExc      = isLineal
+    ? 2 * z.largo * z.cant
+    : 2 * (excLargo + excAncho) * z.cant;
+  const m2AfinarFondo   = totAreaExc;
+  const m2AfinarParedes = perimExc * profExc;
+  const m2Afinar        = m2AfinarFondo + m2AfinarParedes;
+
+  // Mejoramiento de desplante
+  const volMejora = totAreaExc * p.espMejora;
+
+  // Plantilla (huella neta del elemento)
+  const areaPlant    = z.largo * z.ancho;
+  const totAreaPlant = areaPlant * z.cant;
+  const volPlant     = totAreaPlant * p.espPlant;
+
+  // Volumen del elemento estructural
+  const volZap = z.largo * z.ancho * z.peralte * z.cant;
+
+  // Dado — solo aplica para zapatas aisladas
+  const volDado = (!isLineal && z.anchoDado > 0 && z.altDado > 0)
+    ? z.anchoDado * z.anchoDado * z.altDado * z.cant
+    : 0;
+
+  const volConcreto = volZap + volDado;
+
+  // Impermeabilización
+  const m2ImpDado = (!isLineal && z.anchoDado > 0 && z.altDado > 0)
+    ? 4 * z.anchoDado * z.altDado * z.cant
+    : 0;
+  let m2Impermeab;
+  if (isLineal) {
+    // fondo + 2 caras longitudinales (sin topes ni dado)
+    m2Impermeab = (z.ancho * z.largo + 2 * z.peralte * z.largo) * z.cant;
+  } else {
+    // tapa inferior + 4 caras laterales + tapa superior (descontando huella dado) + 4 caras dado
+    const tapaSup = z.largo * z.ancho - z.anchoDado * z.anchoDado;
+    m2Impermeab = (z.largo * z.ancho + 2 * (z.largo + z.ancho) * z.peralte + tapaSup) * z.cant + m2ImpDado;
+  }
+
+  // Relleno compactado = volumen excavado - (mejoramiento + plantilla + concreto)
+  const volRelleno = Math.max(0, volExcNat - volMejora - volPlant - volConcreto);
+
+  return {
+    areaExc, totAreaExc,
+    profDesplante, profExc,
+    volExcNat,
+    espII, espIII,
+    volII_nat, volIII_nat, volII_abund, volIII_abund,
+    m2Afinar,
+    volMejora,
+    totAreaPlant, volPlant,
+    volZap, volDado, volConcreto,
+    m2Impermeab,
+    perimExc,
+    volRelleno,
+  };
+}
+
+// ─── Render tabla de zapatas ──────────────────────────────────────────────────
+function renderTable() {
+  const p    = getP();
+  const body = document.getElementById('zap-body');
+  body.innerHTML = '';
+
+  zapatas.forEach((z, i) => {
+    const c = calcZapata(z, p);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="inp-sm inp-clave" data-i="${i}" data-f="clave" value="${z.clave}"></td>
+      <td>
+        <select class="inp-sm inp-tipo" data-i="${i}" data-f="tipo">
+          <option value="aislada"     ${z.tipo==='aislada'    ?'selected':''}>Aislada</option>
+          <option value="corrida"     ${z.tipo==='corrida'    ?'selected':''}>Corrida</option>
+          <option value="contratrabe" ${z.tipo==='contratrabe'?'selected':''}>Contratrabe</option>
+        </select>
+      </td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="largo"    value="${z.largo.toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="ancho"    value="${z.ancho.toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="profTotal" value="${z.profTotal.toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="peralte"  value="${z.peralte.toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="anchoDado" value="${z.anchoDado.toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="altDado"  value="${z.altDado.toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-cant" type="number" min="1" step="1"  data-i="${i}" data-f="cant"    value="${z.cant}"></td>
+      <td class="num computed">${c.totAreaExc.toFixed(2)}</td>
+      <td class="num computed">${c.volExcNat.toFixed(3)}</td>
+      <td><button class="del-btn" data-del="${i}">✕</button></td>
+    `;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('input,select').forEach(el => {
+    el.addEventListener('input', () => {
+      const i = parseInt(el.dataset.i);
+      const f = el.dataset.f;
+      if (f === 'clave' || f === 'tipo') {
+        zapatas[i][f] = el.value;
+      } else {
+        zapatas[i][f] = parseFloat(el.value) || 0;
+      }
+      renderTable();
+      renderResults();
+    });
+  });
+
+  body.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      zapatas.splice(parseInt(btn.dataset.del), 1);
+      renderTable();
+      renderResults();
+    });
+  });
+}
+
+// ─── Render resultados ────────────────────────────────────────────────────────
+function fmt(n, d = 3) { return n.toFixed(d); }
+function fmtInt(n) { return Math.ceil(n).toLocaleString('es-MX'); }
+
+function renderResults() {
+  const p = getP();
+
+  // Acumular totales
+  let tot = {
+    volExcNat: 0, volII_nat: 0, volIII_nat: 0,
+    volII_abund: 0, volIII_abund: 0,
+    m2Afinar: 0, volMejora: 0,
+    totAreaPlant: 0, volPlant: 0,
+    volZap: 0, volDado: 0, volConcreto: 0,
+    m2Impermeab: 0, volRelleno: 0,
+  };
+
+  // Por tipo de zapata (para partida de piezas)
+  const porClave = {};
+
+  zapatas.forEach(z => {
+    const c = calcZapata(z, p);
+    tot.volExcNat   += c.volExcNat;
+    tot.volII_nat   += c.volII_nat;
+    tot.volIII_nat  += c.volIII_nat;
+    tot.volII_abund += c.volII_abund;
+    tot.volIII_abund += c.volIII_abund;
+    tot.m2Afinar     += c.m2Afinar;
+    tot.volMejora    += c.volMejora;
+    tot.totAreaPlant += c.totAreaPlant;
+    tot.volPlant     += c.volPlant;
+    tot.volZap       += c.volZap;
+    tot.volDado      += c.volDado;
+    tot.volConcreto  += c.volConcreto;
+    tot.m2Impermeab  += c.m2Impermeab;
+    tot.volRelleno   += c.volRelleno;
+
+    const key = z.clave;
+    if (!porClave[key]) porClave[key] = { ...z, volZap: 0, volDado: 0, volConcreto: 0 };
+    porClave[key].volZap     += c.volZap;
+    porClave[key].volDado    += c.volDado;
+    porClave[key].volConcreto += c.volConcreto;
+  });
+
+  const volExcTotal = tot.volII_abund + tot.volIII_abund;
+  const viajes = Math.ceil(tot.volExcNat / p.camion);
+
+  const volConcretoTotal = tot.volZap + tot.volDado + tot.volPlant;
+
+  // ── Tarjetas de totales ──
+  document.getElementById('totals-row').innerHTML = `
+    <div class="total-card accent-amber">
+      <div class="total-label">Vol. exc. total natural</div>
+      <div class="total-value">${fmt(tot.volExcNat)}<span class="total-unit">m³</span></div>
+    </div>
+    <div class="total-card accent-amber">
+      <div class="total-label">Vol. exc. c/abundamiento</div>
+      <div class="total-value">${fmt(tot.volII_abund + tot.volIII_abund)}<span class="total-unit">m³</span></div>
+    </div>
+    <div class="total-card accent-blue">
+      <div class="total-label">Vol. relleno compactado</div>
+      <div class="total-value">${fmt(tot.volRelleno)}<span class="total-unit">m³</span></div>
+    </div>
+    <div class="total-card">
+      <div class="total-label">Acarreos de excavación</div>
+      <div class="total-value">${fmtInt(viajes)}<span class="total-unit">viajes</span></div>
+    </div>
+    <div class="total-card">
+      <div class="total-label">Concreto — zapatas</div>
+      <div class="total-value">${fmt(tot.volZap)}<span class="total-unit">m³</span></div>
+    </div>
+    <div class="total-card">
+      <div class="total-label">Concreto — dados</div>
+      <div class="total-value">${fmt(tot.volDado)}<span class="total-unit">m³</span></div>
+    </div>
+    <div class="total-card">
+      <div class="total-label">Concreto — plantillas</div>
+      <div class="total-value">${fmt(tot.volPlant)}<span class="total-unit">m³</span></div>
+    </div>
+    <div class="total-card accent-green">
+      <div class="total-label">Concreto total colado</div>
+      <div class="total-value">${fmt(volConcretoTotal)}<span class="total-unit">m³</span></div>
+    </div>
+  `;
+
+  // ── Partidas ──
+  const elementoRows = Object.values(porClave).map(z => {
+    const isCT   = z.tipo === 'contratrabe';
+    const isLineal = z.tipo === 'corrida' || isCT;
+    const unidad = isLineal ? 'm' : 'pza';
+    const nombre = isCT ? 'Contratrabe' : 'Zapata';
+    const dimStr = isLineal
+      ? `${fmt(z.largo,2)} m long. × ${fmt(z.ancho,2)} m base × ${fmt(z.peralte,2)} m alt.`
+      : `${fmt(z.largo,2)} × ${fmt(z.ancho,2)} × ${fmt(z.peralte,2)} m`;
+    const cantStr = isLineal ? `${fmt(z.largo * z.cant, 2)}` : `${z.cant}`;
+    return `
+      <div class="partida-row">
+        <div class="partida-desc">${nombre} ${z.clave} — ${dimStr}, f'c=250 kg/cm²</div>
+        <div class="partida-val">${cantStr}</div>
+        <div class="partida-unit">${unidad}</div>
+        <div class="partida-sub">${fmt(z.volConcreto)} m³ conc.</div>
+      </div>
+    `;
+  }).join('');
+
+  const plantillaM2 = tot.totAreaPlant;
+
+  document.getElementById('partidas').innerHTML = `
+    <div class="partida-group">
+      <div class="partida-group-title">Excavación</div>
+      <div class="partida-row">
+        <div class="partida-desc">Excavación a máquina en material Tipo II-A, de ${fmt(p.iiIni,2)} a ${fmt(p.iiFin,2)} m de profundidad + ${p.abundII}% abundamiento</div>
+        <div class="partida-val ${tot.volII_abund===0?'zero':''}">${fmt(tot.volII_abund)}</div>
+        <div class="partida-unit">m³</div>
+        <div class="partida-sub">nat: ${fmt(tot.volII_nat)} m³</div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Excavación a máquina en material Tipo III-A, de ${fmt(p.iiFin,2)} a ${fmt(p.iiiFin,2)} m de profundidad + ${p.abundIII}% abundamiento</div>
+        <div class="partida-val ${tot.volIII_abund===0?'zero':''}">${fmt(tot.volIII_abund)}</div>
+        <div class="partida-unit">m³</div>
+        <div class="partida-sub">nat: ${fmt(tot.volIII_nat)} m³</div>
+      </div>
+      <div class="partida-row highlight">
+        <div class="partida-desc">Afine, nivelación y compactación del fondo de excavación con bailarina</div>
+        <div class="partida-val ${tot.m2Afinar===0?'zero':''}">${fmt(tot.m2Afinar, 2)}</div>
+        <div class="partida-unit">m²</div>
+        <div class="partida-sub"></div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Aplicación de fumigante contra termitas (Dursban TC / Fipronil CE) para desplante de cimentación</div>
+        <div class="partida-val ${tot.m2Afinar===0?'zero':''}">${fmt(tot.m2Afinar, 2)}</div>
+        <div class="partida-unit">m²</div>
+        <div class="partida-sub"></div>
+      </div>
+      <div class="partida-row highlight">
+        <div class="partida-desc">Relleno con material de la excavación, compactado con bailarina al 95% Proctor, en capas de 20 cm</div>
+        <div class="partida-val ${tot.volRelleno===0?'zero':''}">${fmt(tot.volRelleno)}</div>
+        <div class="partida-unit">m³</div>
+        <div class="partida-sub"></div>
+      </div>
+    </div>
+
+    <div class="partida-group">
+      <div class="partida-group-title">Acarreos</div>
+      <div class="partida-row">
+        <div class="partida-desc">Acarreo en camión de ${p.camion} m³ — material producto de la excavación, con carga manual</div>
+        <div class="partida-val ${viajes===0?'zero':''}">${fmtInt(viajes)}</div>
+        <div class="partida-unit">viaje</div>
+        <div class="partida-sub">${fmt(tot.volExcNat)} m³ nat.</div>
+      </div>
+    </div>
+
+    <div class="partida-group">
+      <div class="partida-group-title">Cimentación</div>
+      <div class="partida-row">
+        <div class="partida-desc">Mejoramiento de desplante — material selecto compactado, e=${fmt(p.espMejora,2)} m</div>
+        <div class="partida-val ${tot.volMejora===0?'zero':''}">${fmt(tot.volMejora)}</div>
+        <div class="partida-unit">m³</div>
+        <div class="partida-sub"></div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Plantilla de concreto premezclado f'c=100 kg/cm², e=${fmt(p.espPlant*100,0)} cm, incluye preparación de superficie</div>
+        <div class="partida-val ${plantillaM2===0?'zero':''}">${fmt(plantillaM2, 2)}</div>
+        <div class="partida-unit">m²</div>
+        <div class="partida-sub">${fmt(plantillaM2 * p.espPlant)} m³</div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Suministro y aplicación de plástico negro en cimentación, barrera contra humedad y salitre</div>
+        <div class="partida-val ${tot.m2Impermeab===0?'zero':''}">${fmt(tot.m2Impermeab, 2)}</div>
+        <div class="partida-unit">m²</div>
+        <div class="partida-sub"></div>
+      </div>
+      <div class="partida-row highlight">
+        <div class="partida-desc">Impermeabilización sobre zapatas en todas las caras (cara inferior + laterales)</div>
+        <div class="partida-val ${tot.m2Impermeab===0?'zero':''}">${fmt(tot.m2Impermeab, 2)}</div>
+        <div class="partida-unit">m²</div>
+        <div class="partida-sub"></div>
+      </div>
+      ${elementoRows}
+    </div>
+  `;
+}
+
+// ─── Inicialización ───────────────────────────────────────────────────────────
+document.getElementById('add-btn').addEventListener('click', () => {
+  const last = zapatas[zapatas.length - 1];
+  zapatas.push({
+    clave: 'Z' + (zapatas.length + 1),
+    tipo: 'aislada',
+    largo: last ? last.largo : 1.00,
+    ancho: last ? last.ancho : 1.00,
+    profTotal: last ? last.profTotal : 1.10,
+    peralte: 0.25,
+    anchoDado: 0.20,
+    altDado: 0.75,
+    cant: 1,
+  });
+  renderTable();
+  renderResults();
+});
+
+document.querySelectorAll('#params-panel input').forEach(el => {
+  el.addEventListener('input', () => { renderTable(); renderResults(); });
+});
+
+renderTable();
+renderResults();
+</script>
