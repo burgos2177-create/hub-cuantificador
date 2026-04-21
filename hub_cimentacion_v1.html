@@ -92,6 +92,19 @@
 .inp-sm.locked { opacity: 0.5; cursor: not-allowed; pointer-events: none; background: var(--color-background-tertiary); }
 .td-locked { opacity: 0.35; }
 
+/* Tabla de capas de relleno */
+.rel-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 520px; }
+.rel-table th { font-size: 10.5px; font-weight: 500; color: var(--color-text-tertiary); text-align: left; padding: 6px 8px; border-bottom: 0.5px solid var(--color-border-tertiary); white-space: nowrap; background: var(--color-background-secondary); }
+.rel-table th.num { text-align: right; }
+.rel-table th.ctr { text-align: center; }
+.rel-table td { padding: 6px 8px; border-bottom: 0.5px solid var(--color-border-tertiary); vertical-align: middle; color: var(--color-text-primary); }
+.rel-table td.num { text-align: right; }
+.rel-table td.ctr { text-align: center; }
+.rel-table tr.es-resto td { background: color-mix(in srgb, #1D9E75 5%, var(--color-background-primary)); }
+.inp-mat { width: 160px; font-size: 12.5px; padding: 4px 7px; border-radius: 5px; border: 0.5px solid var(--color-border-secondary); background: var(--color-background-secondary); color: var(--color-text-primary); }
+.inp-desc { width: 240px; font-size: 12.5px; padding: 4px 7px; border-radius: 5px; border: 0.5px solid var(--color-border-secondary); background: var(--color-background-secondary); color: var(--color-text-primary); }
+.inp-mat:focus, .inp-desc:focus { outline: none; border-color: #1D9E75; }
+
 .toolbar { display: flex; gap: 8px; margin-bottom: 1rem; }
 .tool-btn { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 12px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
 .tool-btn:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
@@ -207,6 +220,25 @@
     <button class="add-btn" id="add-btn">+ Agregar zapata</button>
 
     <div class="divider"></div>
+    <div class="section-label">Capas de relleno</div>
+    <p class="tip">Las capas se distribuyen de abajo hacia arriba sobre el volumen disponible. "Producto de excavación" descuenta del acarreo.</p>
+    <div class="table-wrap" style="margin-top:10px;">
+      <table class="rel-table">
+        <thead>
+          <tr>
+            <th>Material</th>
+            <th>Descripción en partida</th>
+            <th class="num">Espesor (m)</th>
+            <th class="ctr">Resto</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rel-body"></tbody>
+      </table>
+    </div>
+    <button class="add-btn" id="add-rel-btn">+ Agregar capa</button>
+
+    <div class="divider"></div>
     <div class="section-label">Totales de cimentación</div>
     <div class="totals-row" id="totals-row"></div>
 
@@ -218,6 +250,11 @@
 
 <script>
 // ─── Estado ───────────────────────────────────────────────────────────────────
+let rellenos = [
+  { material: 'tepetate',   desc: 'Relleno con tepetate, compactado al 95% Proctor en capas de 20 cm',               espesor: 0.20, esResto: false },
+  { material: 'excavacion', desc: 'Relleno con material producto de la excavación, compactado al 95% Proctor en capas de 20 cm', espesor: 0,    esResto: true  },
+];
+
 let zapatas = [
   { clave: 'Z1',   tipo: 'aislada', largo: 1.10, ancho: 1.10, profTotal: 1.10, peralte: 0.25, anchoDado: 0.20, altDado: 0.75, cant: 8  },
   { clave: 'Z2',   tipo: 'aislada', largo: 1.00, ancho: 1.00, profTotal: 1.10, peralte: 0.30, anchoDado: 0.20, altDado: 0.75, cant: 2  },
@@ -334,6 +371,81 @@ function calcZapata(z, p) {
   };
 }
 
+// ─── Capas de relleno ─────────────────────────────────────────────────────────
+const MAT_LABELS = {
+  excavacion: 'Producto de excavación',
+  tepetate:   'Tepetate',
+  banco:      'Material de banco',
+  otro:       'Otro',
+};
+
+function calcRellenoLayers(volRelleno, totAreaExc) {
+  // Distribuye volRelleno en capas de abajo hacia arriba
+  if (totAreaExc <= 0 || volRelleno <= 0) return rellenos.map(() => 0);
+  const fillH = volRelleno / totAreaExc;
+  let rem = fillH;
+  return rellenos.map(r => {
+    const h = r.esResto ? Math.max(0, rem) : Math.min(r.espesor, Math.max(0, rem));
+    rem = Math.max(0, rem - h);
+    return h * totAreaExc;
+  });
+}
+
+function renderRellenos() {
+  const body = document.getElementById('rel-body');
+  body.innerHTML = '';
+  rellenos.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (r.esResto) tr.className = 'es-resto';
+    tr.innerHTML = `
+      <td>
+        <select class="inp-mat" data-ri="${i}" data-rf="material">
+          ${Object.entries(MAT_LABELS).map(([v,l]) =>
+            `<option value="${v}" ${r.material===v?'selected':''}>${l}</option>`
+          ).join('')}
+        </select>
+      </td>
+      <td><input class="inp-desc" data-ri="${i}" data-rf="desc" value="${r.desc}"></td>
+      <td class="num">
+        ${r.esResto
+          ? `<span style="font-size:11px;color:var(--color-text-tertiary)">automático</span>`
+          : `<input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-ri="${i}" data-rf="espesor" value="${r.espesor.toFixed(2)}">`
+        }
+      </td>
+      <td class="ctr"><input type="checkbox" data-ri="${i}" data-rf="esResto" ${r.esResto?'checked':''}></td>
+      <td><button class="del-btn" data-rdel="${i}">✕</button></td>
+    `;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('[data-ri]').forEach(el => {
+    el.addEventListener('input', () => {
+      const i = parseInt(el.dataset.ri);
+      const f = el.dataset.rf;
+      if (f === 'esResto') {
+        rellenos[i].esResto = el.checked;
+        renderRellenos();
+      } else if (f === 'material') {
+        rellenos[i].material = el.value;
+      } else if (f === 'espesor') {
+        rellenos[i].espesor = parseFloat(el.value) || 0;
+      } else if (f === 'desc') {
+        rellenos[i].desc = el.value;
+        return; // no recalcula
+      }
+      renderResults();
+    });
+  });
+
+  body.querySelectorAll('[data-rdel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      rellenos.splice(parseInt(btn.dataset.rdel), 1);
+      renderRellenos();
+      renderResults();
+    });
+  });
+}
+
 // ─── Render tabla de zapatas ──────────────────────────────────────────────────
 function renderTable() {
   const p    = getP();
@@ -436,8 +548,9 @@ function renderResults() {
     m2Impermeab: 0, volRelleno: 0,
   };
 
-  // Por clave (para partida de piezas)
+  // Por clave (para partida de piezas) y por capa de relleno
   const porClave = {};
+  const layerVols = rellenos.map(() => 0);
 
   zapatas.forEach(z => {
     const c = calcZapata(z, p);
@@ -461,6 +574,10 @@ function renderResults() {
     tot.m2Impermeab  += c.m2Impermeab;
     tot.volRelleno   += c.volRelleno;
 
+    // Capas de relleno
+    const capas = calcRellenoLayers(c.volRelleno, c.totAreaExc);
+    capas.forEach((v, li) => { if (!layerVols[li]) layerVols[li] = 0; layerVols[li] += v; });
+
     const key = z.clave;
     if (!porClave[key]) porClave[key] = { ...z, volZap: 0, volDado: 0, volConcreto: 0 };
     porClave[key].volZap      += c.volZap;
@@ -468,7 +585,11 @@ function renderResults() {
     porClave[key].volConcreto += c.volConcreto;
   });
 
-  const viajes = Math.ceil(tot.volExcNat / p.camion);
+  // Acarreo: solo el material NO reutilizado como relleno
+  const volReutilizado = rellenos.reduce((sum, r, i) =>
+    r.material === 'excavacion' ? sum + (layerVols[i] || 0) : sum, 0);
+  const volAcarrear = Math.max(0, tot.volExcNat - volReutilizado);
+  const viajes = Math.ceil(volAcarrear / p.camion);
 
   const volConcretoTotal = tot.volZap + tot.volDado + tot.volPlant;
 
@@ -565,12 +686,17 @@ function renderResults() {
         <div class="partida-unit">m²</div>
         <div class="partida-sub"></div>
       </div>
-      <div class="partida-row highlight">
-        <div class="partida-desc">Relleno con material de la excavación, compactado con bailarina al 95% Proctor, en capas de 20 cm</div>
-        <div class="partida-val ${tot.volRelleno===0?'zero':''}">${fmt(tot.volRelleno)}</div>
-        <div class="partida-unit">m³</div>
-        <div class="partida-sub"></div>
-      </div>
+      ${rellenos.map((r, i) => {
+        const v = layerVols[i] || 0;
+        const tag = r.material === 'excavacion' ? ' <span style="font-size:10px;color:#1D9E75">(reutilizado)</span>' : '';
+        return `
+        <div class="partida-row${i % 2 === 0 ? ' highlight' : ''}">
+          <div class="partida-desc">${r.desc}${tag}</div>
+          <div class="partida-val ${v===0?'zero':''}">${fmt(v)}</div>
+          <div class="partida-unit">m³</div>
+          <div class="partida-sub">${r.esResto ? 'resto' : fmt(r.espesor,2)+' m'}</div>
+        </div>`;
+      }).join('')}
     </div>
 
     <div class="partida-group">
@@ -579,7 +705,7 @@ function renderResults() {
         <div class="partida-desc">Acarreo en camión de ${p.camion} m³ — material producto de la excavación, con carga manual</div>
         <div class="partida-val ${viajes===0?'zero':''}">${fmtInt(viajes)}</div>
         <div class="partida-unit">viaje</div>
-        <div class="partida-sub">${fmt(tot.volExcNat)} m³ nat.</div>
+        <div class="partida-sub">${fmt(volAcarrear)} m³ a retirar${volReutilizado>0?' / '+fmt(volReutilizado)+' m³ reutilizado':''}</div>
       </div>
     </div>
 
@@ -615,6 +741,12 @@ function renderResults() {
 }
 
 // ─── Inicialización ───────────────────────────────────────────────────────────
+document.getElementById('add-rel-btn').addEventListener('click', () => {
+  rellenos.push({ material: 'otro', desc: 'Relleno con material compactado', espesor: 0.20, esResto: false });
+  renderRellenos();
+  renderResults();
+});
+
 document.getElementById('add-btn').addEventListener('click', () => {
   const last = zapatas[zapatas.length - 1];
   zapatas.push({
@@ -660,7 +792,7 @@ function setParamsUI(params) {
 }
 
 document.getElementById('btn-save').addEventListener('click', () => {
-  const data = { version: 1, params: getParamsObj(), zapatas };
+  const data = { version: 1, params: getParamsObj(), zapatas, rellenos };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -677,8 +809,10 @@ document.getElementById('inp-load').addEventListener('change', e => {
     try {
       const data = JSON.parse(ev.target.result);
       if (data.zapatas) zapatas = data.zapatas;
+      if (data.rellenos) rellenos = data.rellenos;
       if (data.params)  setParamsUI(data.params);
       renderTable();
+      renderRellenos();
       renderResults();
     } catch {
       alert('El archivo no es un JSON válido.');
@@ -688,6 +822,7 @@ document.getElementById('inp-load').addEventListener('change', e => {
   e.target.value = ''; // permite recargar el mismo archivo
 });
 
+renderRellenos();
 renderTable();
 renderResults();
 </script>
