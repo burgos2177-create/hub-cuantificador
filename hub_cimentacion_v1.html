@@ -248,9 +248,14 @@ function calcZapata(z, p) {
   const largo = isContratrabe ? 1.0 : z.largo;
 
   // Área de excavación
-  // Aislada: agrega sobreancho en ambas dimensiones; lineal: solo en ancho
-  const excLargo   = isLineal ? largo : largo + p.sob;
-  const excAncho   = z.ancho + p.sob;
+  // Aislada: sobreancho global en ambas dimensiones
+  // Corrida: sobreancho global solo en ancho; largo sin extra
+  // Contratrabe: margen fijo 5 cm por lado en ancho (= +0.10 m total); largo = 1.00 exacto, sin topes
+  const excLargo = isContratrabe ? largo
+                 : isCorrida     ? largo
+                 :                 largo + p.sob;
+  const excAncho = isContratrabe ? z.ancho + 0.10
+                 :                 z.ancho + p.sob;
   const areaExc    = excLargo * excAncho;
   const totAreaExc = areaExc * z.cant;
 
