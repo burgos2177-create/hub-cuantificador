@@ -356,6 +356,17 @@ function calcZapata(z, p) {
   // Relleno compactado = volumen excavado - (mejoramiento + plantilla + concreto)
   const volRelleno = Math.max(0, volExcNat - volMejora - volPlant - volConcreto);
 
+  // Cimbra: caras laterales del concreto (zapata + dado)
+  let m2Cimbra;
+  if (isLineal) {
+    // 2 caras longitudinales de la zapata/contratrabe (topes quedan contra suelo)
+    m2Cimbra = 2 * z.peralte * largo * z.cant;
+  } else {
+    // 4 caras laterales zapata + 4 caras dado
+    m2Cimbra = (2 * (largo + z.ancho) * z.peralte
+              + (z.anchoDado > 0 && z.altDado > 0 ? 4 * z.anchoDado * z.altDado : 0)) * z.cant;
+  }
+
   return {
     areaExc, totAreaExc,
     profDesplante, profExc,
@@ -369,6 +380,7 @@ function calcZapata(z, p) {
     m2Impermeab,
     perimExc,
     volRelleno,
+    m2Cimbra,
   };
 }
 
@@ -546,7 +558,7 @@ function renderResults() {
     m2Afinar: 0, volMejora: 0,
     totAreaPlant: 0, volPlant: 0,
     volZap: 0, volDado: 0, volConcreto: 0,
-    m2Impermeab: 0, volRelleno: 0,
+    m2Impermeab: 0, volRelleno: 0, m2Cimbra: 0,
   };
 
   // Por clave (para partida de piezas) y por capa de relleno
@@ -574,6 +586,7 @@ function renderResults() {
     tot.volConcreto  += c.volConcreto;
     tot.m2Impermeab  += c.m2Impermeab;
     tot.volRelleno   += c.volRelleno;
+    tot.m2Cimbra     += c.m2Cimbra;
 
     // Capas de relleno
     const capas = calcRellenoLayers(c.volRelleno, c.totAreaExc);
@@ -627,6 +640,10 @@ function renderResults() {
     <div class="total-card accent-green">
       <div class="total-label">Concreto total colado</div>
       <div class="total-value">${fmt(volConcretoTotal)}<span class="total-unit">m³</span></div>
+    </div>
+    <div class="total-card">
+      <div class="total-label">Cimbra (ref.)</div>
+      <div class="total-value">${fmt(tot.m2Cimbra, 2)}<span class="total-unit">m²</span></div>
     </div>
   `;
 
