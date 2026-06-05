@@ -122,7 +122,7 @@
 <div class="hub">
   <div class="sidebar">
     <div class="sidebar-title">Módulos</div>
-    <div class="nav-item active"><span class="nav-icon">▭</span><span>Zapatas</span></div>
+    <div class="nav-item active" data-view="zapatas"><span class="nav-icon">▭</span><span>Zapatas</span></div>
     <div class="sub-nav">
       <div class="sub-item active">Cimentación</div>
       <div class="sub-item">Excavación</div>
@@ -133,12 +133,13 @@
       <div class="sub-item">Excavación</div>
     </div>
     <div class="nav-item coming"><span class="nav-icon">⬜</span><span>Dalas</span><span class="badge">pronto</span></div>
-    <div class="nav-item coming"><span class="nav-icon">◫</span><span>Muros</span><span class="badge">pronto</span></div>
+    <div class="nav-item" data-view="muros"><span class="nav-icon">◫</span><span>Muros</span></div>
     <div class="nav-item coming"><span class="nav-icon">⊞</span><span>Losas</span><span class="badge">pronto</span></div>
     <div class="nav-item coming"><span class="nav-icon">◈</span><span>Trazo</span><span class="badge">pronto</span></div>
   </div>
 
   <div class="main">
+    <div id="view-zapatas">
     <div class="module-header">
       <div class="module-title">Zapatas — cuantificación de cimentación</div>
       <div class="module-desc">Volúmenes de excavación, concreto, relleno e impermeabilización a partir de la matriz de zapatas</div>
@@ -245,6 +246,76 @@
     <div class="divider"></div>
     <div class="section-label">Partidas de obra</div>
     <div class="partidas" id="partidas"></div>
+    </div><!-- /view-zapatas -->
+
+    <div id="view-muros" style="display:none;">
+      <div class="module-header">
+        <div class="module-title">Muros — cuantificación de piezas</div>
+        <div class="module-desc">Piezas de block o tabique a partir del área de muro y el espesor de junteado, con merma y mortero de junteo</div>
+      </div>
+
+      <div class="toolbar">
+        <button class="tool-btn primary" id="btn-save-m">💾 Guardar cuantificación</button>
+        <label class="tool-btn" style="margin:0;">
+          📂 Cargar cuantificación
+          <input type="file" id="inp-load-m" accept=".json" style="display:none;">
+        </label>
+      </div>
+
+      <!-- Parámetros globales -->
+      <div class="section-label">Parámetros globales de muros</div>
+      <div class="params-grid" id="muros-params">
+        <div class="field">
+          <label>Junteado (espesor de junta)</label>
+          <input type="number" id="m-junta" value="1.0" step="0.5" min="0">
+          <span class="unit-hint">cm (junta horizontal y vertical)</span>
+        </div>
+        <div class="field">
+          <label>Merma / desperdicio</label>
+          <input type="number" id="m-merma" value="5" step="1" min="0">
+          <span class="unit-hint">% sobre piezas</span>
+        </div>
+        <div class="field">
+          <label>Piezas por tarima</label>
+          <input type="number" id="m-tarima" value="0" step="1" min="0">
+          <span class="unit-hint">0 = no calcular tarimas</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Matriz de muros</div>
+      <p class="tip">El área neta descuenta los vanos (puertas/ventanas) y se multiplica por la cantidad de muros iguales. Las piezas por m² consideran el junteado en junta horizontal y vertical. Elige block o tabique por muro; con "Personalizado" puedes editar la cara de la pieza (L × H).</p>
+
+      <div class="table-wrap" style="margin-top:10px;">
+        <table class="zap-table">
+          <thead>
+            <tr>
+              <th>Clave</th>
+              <th>Pieza</th>
+              <th class="num">Largo (m)</th>
+              <th class="num">Alto (m)</th>
+              <th class="num">Vanos (m²)</th>
+              <th class="num">Cant.</th>
+              <th class="num">L pza (m)</th>
+              <th class="num">H pza (m)</th>
+              <th class="num">Área neta (m²)</th>
+              <th class="num">Piezas (c/merma)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="muro-body"></tbody>
+        </table>
+      </div>
+      <button class="add-btn" id="add-muro-btn">+ Agregar muro</button>
+
+      <div class="divider"></div>
+      <div class="section-label">Totales de muros</div>
+      <div class="totals-row" id="muro-totals"></div>
+
+      <div class="divider"></div>
+      <div class="section-label">Partidas de obra</div>
+      <div class="partidas" id="muro-partidas"></div>
+    </div><!-- /view-muros -->
   </div>
 </div>
 
@@ -758,7 +829,229 @@ function renderResults() {
   `;
 }
 
+// ─── Muros: estado y catálogo de piezas ───────────────────────────────────────
+// Dimensiones de la CARA vista del muro: l = largo, h = alto; t = espesor del muro (m)
+const PIEZAS = {
+  block15:  { label: 'Block hueco 15×20×40 cm', l: 0.40, h: 0.20, t: 0.15 },
+  block20:  { label: 'Block hueco 20×20×40 cm', l: 0.40, h: 0.20, t: 0.20 },
+  block10:  { label: 'Block hueco 10×20×40 cm', l: 0.40, h: 0.20, t: 0.10 },
+  tabiqueR: { label: 'Tabique rojo recocido 6×12×24 cm', l: 0.24, h: 0.06, t: 0.12 },
+  tabicon:  { label: 'Tabicón 12×20×40 cm',     l: 0.40, h: 0.20, t: 0.12 },
+  custom:   { label: 'Personalizado',           l: 0.40, h: 0.20, t: 0.15 },
+};
+
+let muros = [
+  { clave: 'M1', pieza: 'block15',  largo: 12.00, alto: 2.80, vanos: 4.20, cant: 1, lPza: 0.40, hPza: 0.20, tPza: 0.15 },
+  { clave: 'M2', pieza: 'tabiqueR', largo:  8.00, alto: 2.80, vanos: 1.50, cant: 1, lPza: 0.24, hPza: 0.06, tPza: 0.12 },
+];
+
+function getMP() {
+  return {
+    junta:  parseFloat(document.getElementById('m-junta').value)  || 0, // cm
+    merma:  parseFloat(document.getElementById('m-merma').value)  || 0, // %
+    tarima: parseFloat(document.getElementById('m-tarima').value) || 0, // pza/tarima
+  };
+}
+
+function calcMuro(m, gp) {
+  const j     = gp.junta / 100;      // junta en m
+  const merma = gp.merma / 100;
+  const l = m.lPza, h = m.hPza, t = m.tPza || 0;
+
+  const areaBruta = m.largo * m.alto;
+  const areaNeta  = Math.max(0, areaBruta - m.vanos) * m.cant;
+
+  // Piezas por m²: una pieza ocupa (l+junta) × (h+junta)
+  const piezasM2  = (l > 0 && h > 0) ? 1 / ((l + j) * (h + j)) : 0;
+  const piezasNet = areaNeta * piezasM2;
+  const piezas    = piezasNet * (1 + merma);
+
+  // Mortero de junteo (aprox.): fracción de junta × espesor del muro
+  const fracJunta  = (l > 0 && h > 0) ? Math.max(0, 1 - (l * h) / ((l + j) * (h + j))) : 0;
+  const morteroVol = areaNeta * t * fracJunta;
+
+  return { areaBruta, areaNeta, piezasM2, piezasNet, piezas, morteroVol };
+}
+
+function renderMuroTable() {
+  const gp   = getMP();
+  const body = document.getElementById('muro-body');
+  body.innerHTML = '';
+
+  muros.forEach((m, i) => {
+    const c = calcMuro(m, gp);
+    const isCustom = m.pieza === 'custom';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="inp-sm inp-clave" data-mi="${i}" data-mf="clave" value="${m.clave}"></td>
+      <td>
+        <select class="inp-sm inp-tipo" style="width:auto;min-width:170px" data-mi="${i}" data-mf="pieza">
+          ${Object.entries(PIEZAS).map(([k,v]) =>
+            `<option value="${k}" ${m.pieza===k?'selected':''}>${v.label}</option>`
+          ).join('')}
+        </select>
+      </td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-mi="${i}" data-mf="largo" value="${m.largo.toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-mi="${i}" data-mf="alto"  value="${m.alto.toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-mi="${i}" data-mf="vanos" value="${m.vanos.toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-cant" type="number" min="1" step="1" data-mi="${i}" data-mf="cant" value="${m.cant}"></td>
+      <td class="num ${isCustom?'':'td-locked'}"><input class="inp-sm inp-dim ${isCustom?'':'locked'}" type="number" min="0" step="0.01" data-mi="${i}" data-mf="lPza" value="${m.lPza.toFixed(2)}" tabindex="${isCustom?0:-1}"></td>
+      <td class="num ${isCustom?'':'td-locked'}"><input class="inp-sm inp-dim ${isCustom?'':'locked'}" type="number" min="0" step="0.01" data-mi="${i}" data-mf="hPza" value="${m.hPza.toFixed(2)}" tabindex="${isCustom?0:-1}"></td>
+      <td class="num computed">${c.areaNeta.toFixed(2)}</td>
+      <td class="num computed">${fmtInt(c.piezas)}</td>
+      <td><button class="del-btn" data-mdel="${i}">✕</button></td>
+    `;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('input,select').forEach(el => {
+    el.addEventListener('input', () => {
+      const i = parseInt(el.dataset.mi);
+      const f = el.dataset.mf;
+      if (f === 'pieza') {
+        muros[i].pieza = el.value;
+        if (el.value !== 'custom') {
+          muros[i].lPza = PIEZAS[el.value].l;
+          muros[i].hPza = PIEZAS[el.value].h;
+          muros[i].tPza = PIEZAS[el.value].t;
+        }
+        renderMuroTable(); // cambia bloqueo de L/H pza → re-render de fila
+      } else if (f === 'clave') {
+        muros[i].clave = el.value;
+        return; // no afecta cálculos
+      } else {
+        muros[i][f] = parseFloat(el.value) || 0;
+        updateMuroRow(i);
+      }
+      renderMuroResults();
+    });
+  });
+
+  body.querySelectorAll('[data-mdel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      muros.splice(parseInt(btn.dataset.mdel), 1);
+      renderMuroTable();
+      renderMuroResults();
+    });
+  });
+}
+
+function updateMuroRow(i) {
+  const c = calcMuro(muros[i], getMP());
+  const row = document.querySelectorAll('#muro-body tr')[i];
+  if (!row) return;
+  const comp = row.querySelectorAll('td.computed');
+  if (comp[0]) comp[0].textContent = c.areaNeta.toFixed(2);
+  if (comp[1]) comp[1].textContent = fmtInt(c.piezas);
+}
+
+function renderMuroResults() {
+  const gp = getMP();
+  let totArea = 0, totPiezasNet = 0, totPiezas = 0, totMortero = 0;
+  const porPieza = {};
+
+  muros.forEach(m => {
+    const c = calcMuro(m, gp);
+    totArea      += c.areaNeta;
+    totPiezasNet += c.piezasNet;
+    totPiezas    += c.piezas;
+    totMortero   += c.morteroVol;
+
+    const key = m.pieza === 'custom'
+      ? `custom_${m.lPza.toFixed(2)}x${m.hPza.toFixed(2)}`
+      : m.pieza;
+    if (!porPieza[key]) porPieza[key] = { pieza: m.pieza, lPza: m.lPza, hPza: m.hPza, area: 0, piezas: 0, claves: [] };
+    porPieza[key].area   += c.areaNeta;
+    porPieza[key].piezas += c.piezas;
+    if (!porPieza[key].claves.includes(m.clave)) porPieza[key].claves.push(m.clave);
+  });
+
+  const totTarimas = gp.tarima > 0 ? Math.ceil(totPiezas / gp.tarima) : 0;
+
+  document.getElementById('muro-totals').innerHTML = `
+    <div class="total-card accent-blue">
+      <div class="total-label">Área neta de muro</div>
+      <div class="total-value">${fmt(totArea, 2)}<span class="total-unit">m²</span></div>
+    </div>
+    <div class="total-card accent-green">
+      <div class="total-label">Piezas totales (c/merma)</div>
+      <div class="total-value">${fmtInt(totPiezas)}<span class="total-unit">pza</span></div>
+    </div>
+    <div class="total-card">
+      <div class="total-label">Piezas sin merma</div>
+      <div class="total-value">${fmtInt(totPiezasNet)}<span class="total-unit">pza</span></div>
+    </div>
+    <div class="total-card accent-amber">
+      <div class="total-label">Mortero de junteo (aprox.)</div>
+      <div class="total-value">${fmt(totMortero, 3)}<span class="total-unit">m³</span></div>
+    </div>
+    ${gp.tarima > 0 ? `
+    <div class="total-card">
+      <div class="total-label">Tarimas</div>
+      <div class="total-value">${fmtInt(totTarimas)}<span class="total-unit">tarimas</span></div>
+    </div>` : ''}
+  `;
+
+  const labelOf = (p) => p.pieza === 'custom'
+    ? `pieza personalizada ${fmt(p.lPza*100,0)}×${fmt(p.hPza*100,0)} cm`
+    : PIEZAS[p.pieza].label;
+
+  const rows = Object.values(porPieza).map(p => {
+    const j   = gp.junta / 100;
+    const pm2 = (p.lPza > 0 && p.hPza > 0) ? 1 / ((p.lPza + j) * (p.hPza + j)) : 0;
+    return `
+      <div class="partida-row">
+        <div class="partida-desc">Muro de ${labelOf(p)} asentado con mortero, junteado de ${fmt(gp.junta,1)} cm — claves ${p.claves.join(', ')}</div>
+        <div class="partida-val ${p.piezas===0?'zero':''}">${fmtInt(p.piezas)}</div>
+        <div class="partida-unit">pza</div>
+        <div class="partida-sub">${fmt(p.area,2)} m² · ${pm2.toFixed(1)} pza/m²</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('muro-partidas').innerHTML = `
+    <div class="partida-group">
+      <div class="partida-group-title">Muros — piezas</div>
+      ${rows || '<div class="partida-row"><div class="partida-desc">Sin muros capturados</div><div class="partida-val zero">0</div><div class="partida-unit">pza</div></div>'}
+    </div>
+    <div class="partida-group">
+      <div class="partida-group-title">Muros — mortero de junteo</div>
+      <div class="partida-row highlight">
+        <div class="partida-desc">Mortero cemento-arena para junteo de piezas (volumen aproximado, junta de ${fmt(gp.junta,1)} cm)</div>
+        <div class="partida-val ${totMortero===0?'zero':''}">${fmt(totMortero, 3)}</div>
+        <div class="partida-unit">m³</div>
+        <div class="partida-sub"></div>
+      </div>
+    </div>
+  `;
+}
+
+function setMurosUI(mp) {
+  document.getElementById('m-junta').value  = mp.junta;
+  document.getElementById('m-merma').value  = mp.merma;
+  document.getElementById('m-tarima').value = mp.tarima ?? 0;
+}
+
+// ─── Navegación entre módulos ──────────────────────────────────────────────────
+function showView(v) {
+  document.getElementById('view-zapatas').style.display = v === 'zapatas' ? '' : 'none';
+  document.getElementById('view-muros').style.display   = v === 'muros'   ? '' : 'none';
+  document.querySelectorAll('.nav-item[data-view]').forEach(n =>
+    n.classList.toggle('active', n.dataset.view === v));
+}
+document.querySelectorAll('.nav-item[data-view]').forEach(n =>
+  n.addEventListener('click', () => showView(n.dataset.view)));
+
 // ─── Inicialización ───────────────────────────────────────────────────────────
+document.getElementById('add-muro-btn').addEventListener('click', () => {
+  muros.push({ clave: 'M' + (muros.length + 1), pieza: 'block15', largo: 3.00, alto: 2.80, vanos: 0, cant: 1, lPza: 0.40, hPza: 0.20, tPza: 0.15 });
+  renderMuroTable();
+  renderMuroResults();
+});
+
+document.querySelectorAll('#muros-params input').forEach(el => {
+  el.addEventListener('input', () => { renderMuroTable(); renderMuroResults(); });
+});
+
 document.getElementById('add-rel-btn').addEventListener('click', () => {
   rellenos.push({ material: 'otro', desc: 'Relleno con material compactado', espesor: 0.20, esResto: false });
   renderRellenos();
@@ -809,38 +1102,54 @@ function setParamsUI(params) {
   document.getElementById('p-camion').value    = params.camion;
 }
 
-document.getElementById('btn-save').addEventListener('click', () => {
-  const data = { version: 1, params: getParamsObj(), zapatas, rellenos };
+function saveAll() {
+  const data = { version: 2, params: getParamsObj(), zapatas, rellenos, murosParams: getMP(), muros };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'cuantificacion.json';
   a.click();
   URL.revokeObjectURL(a.href);
-});
+}
 
-document.getElementById('inp-load').addEventListener('change', e => {
-  const file = e.target.files[0];
+function loadAll(file) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
     try {
       const data = JSON.parse(ev.target.result);
-      if (data.zapatas) zapatas = data.zapatas;
-      if (data.rellenos) rellenos = data.rellenos;
-      if (data.params)  setParamsUI(data.params);
+      if (data.zapatas)     zapatas = data.zapatas;
+      if (data.rellenos)    rellenos = data.rellenos;
+      if (data.params)      setParamsUI(data.params);
+      if (data.muros)       muros = data.muros;
+      if (data.murosParams) setMurosUI(data.murosParams);
       renderTable();
       renderRellenos();
       renderResults();
+      renderMuroTable();
+      renderMuroResults();
     } catch {
       alert('El archivo no es un JSON válido.');
     }
   };
   reader.readAsText(file);
+}
+
+document.getElementById('btn-save').addEventListener('click', saveAll);
+document.getElementById('btn-save-m').addEventListener('click', saveAll);
+
+document.getElementById('inp-load').addEventListener('change', e => {
+  loadAll(e.target.files[0]);
   e.target.value = ''; // permite recargar el mismo archivo
+});
+document.getElementById('inp-load-m').addEventListener('change', e => {
+  loadAll(e.target.files[0]);
+  e.target.value = '';
 });
 
 renderRellenos();
 renderTable();
 renderResults();
+renderMuroTable();
+renderMuroResults();
 </script>
