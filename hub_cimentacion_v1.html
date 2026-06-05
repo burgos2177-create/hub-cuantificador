@@ -873,7 +873,6 @@ const SACOS_PREMEZCLADO   = { 50: 10.5, 25: 21 }; // sacos de mortero premezclad
 const SACOS_CEMENTO_TRAD  = 7.5;                  // sacos de cemento 50 kg / m³
 const ARENA_POR_M3 = 1.1;   // m³ de arena por m³ de mortero
 const AGUA_L_POR_M3 = 190;  // litros de agua por m³ de mortero
-const DENS_ARENA = 1500;    // kg/m³ de arena suelta (para el cálculo de toneladas)
 
 function getMP() {
   return {
@@ -1000,14 +999,16 @@ function renderMuroResults() {
   });
 
   const isPremezclado = gp.tipo === 'premezclado';
-  const sacoKg     = isPremezclado ? gp.sacoKg : 50; // el cemento tradicional es saco de 50 kg
-  const totTarimas = gp.tarima > 0 ? Math.ceil(totPiezas / gp.tarima) : 0;
-  const totSacos   = totMortero * gp.sacosM3;        // sacos de mortero premezclado o de cemento
-  const totArena   = totMortero * ARENA_POR_M3;      // m³ de arena (en ambos casos)
-  const totAguaL   = totMortero * AGUA_L_POR_M3;     // litros de agua
-  const sacosLabel = isPremezclado ? 'Mortero premezclado (sacos)' : 'Cemento (sacos 50 kg)';
-  // Toneladas de mortero = masa de todos los componentes (aglomerante + arena + agua)
-  const totToneladas = (totSacos * sacoKg + totArena * DENS_ARENA + totAguaL) / 1000;
+  const sacoKg       = isPremezclado ? gp.sacoKg : 50; // el cemento tradicional es saco de 50 kg
+  const totTarimas   = gp.tarima > 0 ? Math.ceil(totPiezas / gp.tarima) : 0;
+  const totSacos     = totMortero * gp.sacosM3;        // sacos de mortero premezclado o de cemento
+  const sacosComprar = Math.ceil(totSacos);            // sacos enteros a comprar
+  const totArena     = totMortero * ARENA_POR_M3;      // m³ de arena (en ambos casos)
+  const totAguaL     = totMortero * AGUA_L_POR_M3;     // litros de agua
+  const sacosLabel   = isPremezclado ? 'Mortero premezclado (sacos)' : 'Cemento (sacos 50 kg)';
+  const tonLabel     = isPremezclado ? 'Mortero (toneladas)' : 'Cemento (toneladas)';
+  // Toneladas del producto en saco = sacos a comprar × peso del saco (la arena/agua van aparte)
+  const totToneladas = sacosComprar * sacoKg / 1000;
 
   document.getElementById('muro-totals').innerHTML = `
     <div class="total-card accent-blue">
@@ -1027,7 +1028,7 @@ function renderMuroResults() {
       <div class="total-value">${fmt(totMortero, 3)}<span class="total-unit">m³</span></div>
     </div>
     <div class="total-card accent-amber">
-      <div class="total-label">Mortero (toneladas)</div>
+      <div class="total-label">${tonLabel}</div>
       <div class="total-value">${fmt(totToneladas, 2)}<span class="total-unit">t</span></div>
     </div>
     <div class="total-card accent-green">
@@ -1068,7 +1069,7 @@ function renderMuroResults() {
         <div class="partida-desc">Mortero de junteo de piezas — ${isPremezclado ? 'mortero premezclado en saco + arena' : 'cemento tradicional + arena en obra'} (volumen aproximado, junta de ${fmt(gp.junta,1)} cm)</div>
         <div class="partida-val ${totMortero===0?'zero':''}">${fmt(totMortero, 3)}</div>
         <div class="partida-unit">m³</div>
-        <div class="partida-sub">${fmt(totToneladas,2)} t</div>
+        <div class="partida-sub"></div>
       </div>
       <div class="partida-row">
         <div class="partida-desc">${isPremezclado
@@ -1076,7 +1077,7 @@ function renderMuroResults() {
             : `Cemento gris tipo CPC 30R en sacos de 50 kg (rend. ${fmt(gp.sacosM3,1)} sacos/m³)`}</div>
         <div class="partida-val ${totSacos===0?'zero':''}">${fmtInt(totSacos)}</div>
         <div class="partida-unit">sacos</div>
-        <div class="partida-sub">${fmt(totSacos,1)} sacos · ${fmt(totToneladas,2)} t mortero</div>
+        <div class="partida-sub">${fmt(totSacos,1)} sacos exactos · ${fmt(totToneladas,2)} t (${sacosComprar}×${fmt(sacoKg,0)} kg)</div>
       </div>
       <div class="partida-row">
         <div class="partida-desc">Arena para el mortero de junteo (aprox. ${fmt(ARENA_POR_M3,2)} m³/m³)</div>
