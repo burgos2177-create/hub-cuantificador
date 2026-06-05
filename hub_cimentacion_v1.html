@@ -132,7 +132,7 @@
       <div class="sub-item">Afine</div>
       <div class="sub-item">Excavación</div>
     </div>
-    <div class="nav-item coming"><span class="nav-icon">⬜</span><span>Dalas</span><span class="badge">pronto</span></div>
+    <div class="nav-item" data-view="confinamiento"><span class="nav-icon">⬜</span><span>Confinamiento</span></div>
     <div class="nav-item" data-view="muros"><span class="nav-icon">◫</span><span>Muros</span></div>
     <div class="nav-item coming"><span class="nav-icon">⊞</span><span>Losas</span><span class="badge">pronto</span></div>
     <div class="nav-item coming"><span class="nav-icon">◈</span><span>Trazo</span><span class="badge">pronto</span></div>
@@ -337,6 +337,100 @@
       <div class="section-label">Partidas de obra</div>
       <div class="partidas" id="muro-partidas"></div>
     </div><!-- /view-muros -->
+
+    <div id="view-confinamiento" style="display:none;">
+      <div class="module-header">
+        <div class="module-title">Confinamiento — castillos y dalas</div>
+        <div class="module-desc">Cuantifica armex, concreto mezclado in situ y cimbra de castillos y dalas de confinamiento</div>
+      </div>
+
+      <div class="toolbar">
+        <button class="tool-btn primary" id="btn-save-c">💾 Guardar cuantificación</button>
+        <label class="tool-btn" style="margin:0;">
+          📂 Cargar cuantificación
+          <input type="file" id="inp-load-c" accept=".json" style="display:none;">
+        </label>
+      </div>
+
+      <!-- Parámetros globales -->
+      <div class="section-label">Parámetros globales de confinamiento</div>
+      <div class="params-grid" id="conf-params">
+        <div class="field">
+          <label>Resistencia f'c</label>
+          <input type="number" id="c-fc" value="150" step="10" min="0">
+          <span class="unit-hint">kg/cm² del concreto</span>
+        </div>
+        <div class="field">
+          <label>Tramo de armex</label>
+          <input type="number" id="c-tramo" value="6" step="0.5" min="0.5">
+          <span class="unit-hint">m por pieza estándar</span>
+        </div>
+        <div class="field">
+          <label>Merma armex</label>
+          <input type="number" id="c-merma-armex" value="8" step="1" min="0">
+          <span class="unit-hint">% (traslapes y corte)</span>
+        </div>
+        <div class="field">
+          <label>Merma concreto</label>
+          <input type="number" id="c-merma-conc" value="5" step="1" min="0">
+          <span class="unit-hint">% de desperdicio</span>
+        </div>
+        <div class="field">
+          <label>Cemento por m³</label>
+          <input type="number" id="c-cem" value="7" step="0.5" min="0">
+          <span class="unit-hint">sacos 50 kg / m³</span>
+        </div>
+        <div class="field">
+          <label>Arena por m³</label>
+          <input type="number" id="c-arena" value="0.51" step="0.01" min="0">
+          <span class="unit-hint">m³ / m³ concreto</span>
+        </div>
+        <div class="field">
+          <label>Grava por m³</label>
+          <input type="number" id="c-grava" value="0.55" step="0.01" min="0">
+          <span class="unit-hint">m³ / m³ concreto</span>
+        </div>
+        <div class="field">
+          <label>Agua por m³</label>
+          <input type="number" id="c-agua" value="180" step="5" min="0">
+          <span class="unit-hint">L / m³ concreto</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Matriz de elementos de confinamiento</div>
+      <p class="tip">Castillo: la longitud es la altura del elemento. Dala/cadena: la longitud es el desarrollo horizontal. La sección (base × peralte) se toma del armex elegido y es editable con "Personalizado". Cimbra = nº de caras × (base+peralte)/2 × longitud.</p>
+
+      <div class="table-wrap" style="margin-top:10px;">
+        <table class="zap-table">
+          <thead>
+            <tr>
+              <th>Clave</th>
+              <th>Tipo</th>
+              <th>Armex</th>
+              <th class="num">Base (m)</th>
+              <th class="num">Peralte (m)</th>
+              <th class="num">Longitud (m)</th>
+              <th class="num">Caras cimbra</th>
+              <th class="num">Cant.</th>
+              <th class="num">Concreto (m³)</th>
+              <th class="num">Armex (ml)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="conf-body"></tbody>
+        </table>
+      </div>
+      <button class="add-btn" id="add-conf-btn">+ Agregar elemento</button>
+
+      <div class="divider"></div>
+      <div class="section-label">Totales de confinamiento</div>
+      <div class="totals-row" id="conf-totals"></div>
+
+      <div class="divider"></div>
+      <div class="section-label">Partidas de obra</div>
+      <div class="partidas" id="conf-partidas"></div>
+    </div><!-- /view-confinamiento -->
   </div>
 </div>
 
@@ -1132,10 +1226,275 @@ document.getElementById('m-saco-kg').addEventListener('change', () => {
   renderMuroResults();
 });
 
+// ─── Confinamiento: castillos y dalas ──────────────────────────────────────────
+// Catálogo de armex: define la sección (base × peralte) de cada designación
+const ARMEX = {
+  '15x15': { label: 'Armex 15×15', a: 0.15, b: 0.15 },
+  '12x20': { label: 'Armex 12×20', a: 0.12, b: 0.20 },
+  '15x20': { label: 'Armex 15×20', a: 0.15, b: 0.20 },
+  '20x20': { label: 'Armex 20×20', a: 0.20, b: 0.20 },
+  '10x20': { label: 'Armex 10×20', a: 0.10, b: 0.20 },
+  custom:  { label: 'Personalizado', a: 0.15, b: 0.15 },
+};
+
+let confina = [
+  { clave: 'C-1', tipo: 'castillo', armex: '15x15', a: 0.15, b: 0.15, longitud: 2.80, caras: 2, cant: 12 },
+  { clave: 'D-1', tipo: 'dala',     armex: '15x20', a: 0.15, b: 0.20, longitud: 27.40, caras: 2, cant: 1 },
+];
+
+function getCP() {
+  return {
+    fc:        parseFloat(document.getElementById('c-fc').value)         || 0,
+    tramo:     parseFloat(document.getElementById('c-tramo').value)      || 6,
+    mermaArmex:parseFloat(document.getElementById('c-merma-armex').value)|| 0,
+    mermaConc: parseFloat(document.getElementById('c-merma-conc').value) || 0,
+    cem:       parseFloat(document.getElementById('c-cem').value)        || 0,
+    arena:     parseFloat(document.getElementById('c-arena').value)      || 0,
+    grava:     parseFloat(document.getElementById('c-grava').value)      || 0,
+    agua:      parseFloat(document.getElementById('c-agua').value)       || 0,
+  };
+}
+
+function calcConf(e, cp) {
+  const largoTot   = e.longitud * e.cant;                 // ml de armex (desarrollo total)
+  const volConc    = e.a * e.b * e.longitud * e.cant;     // m³ de concreto (neto)
+  const volConcM   = volConc * (1 + cp.mermaConc / 100);  // con merma
+  const m2Cimbra   = e.caras * (e.a + e.b) / 2 * e.longitud * e.cant; // caras × lado prom × L
+  return { largoTot, volConc, volConcM, m2Cimbra };
+}
+
+function renderConfTable() {
+  const body = document.getElementById('conf-body');
+  body.innerHTML = '';
+  const cp = getCP();
+
+  confina.forEach((e, i) => {
+    const c = calcConf(e, cp);
+    const isCustom = e.armex === 'custom';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="inp-sm inp-clave" data-ci="${i}" data-cf="clave" value="${e.clave}"></td>
+      <td>
+        <select class="inp-sm inp-tipo" data-ci="${i}" data-cf="tipo">
+          <option value="castillo" ${e.tipo==='castillo'?'selected':''}>Castillo</option>
+          <option value="dala"     ${e.tipo==='dala'?'selected':''}>Dala / cadena</option>
+        </select>
+      </td>
+      <td>
+        <select class="inp-sm inp-tipo" style="width:auto;min-width:130px" data-ci="${i}" data-cf="armex">
+          ${Object.entries(ARMEX).map(([k,v]) =>
+            `<option value="${k}" ${e.armex===k?'selected':''}>${v.label}</option>`
+          ).join('')}
+        </select>
+      </td>
+      <td class="num ${isCustom?'':'td-locked'}"><input class="inp-sm inp-dim ${isCustom?'':'locked'}" type="number" min="0" step="0.01" data-ci="${i}" data-cf="a" value="${e.a.toFixed(2)}" tabindex="${isCustom?0:-1}"></td>
+      <td class="num ${isCustom?'':'td-locked'}"><input class="inp-sm inp-dim ${isCustom?'':'locked'}" type="number" min="0" step="0.01" data-ci="${i}" data-cf="b" value="${e.b.toFixed(2)}" tabindex="${isCustom?0:-1}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-ci="${i}" data-cf="longitud" value="${e.longitud.toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-cant" type="number" min="0" max="4" step="1" data-ci="${i}" data-cf="caras" value="${e.caras}"></td>
+      <td class="num"><input class="inp-sm inp-cant" type="number" min="1" step="1" data-ci="${i}" data-cf="cant" value="${e.cant}"></td>
+      <td class="num computed">${c.volConcM.toFixed(3)}</td>
+      <td class="num computed">${c.largoTot.toFixed(2)}</td>
+      <td><button class="del-btn" data-cdel="${i}">✕</button></td>
+    `;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('input,select').forEach(el => {
+    el.addEventListener('input', () => {
+      const i = parseInt(el.dataset.ci);
+      const f = el.dataset.cf;
+      if (f === 'armex') {
+        confina[i].armex = el.value;
+        if (el.value !== 'custom') {
+          confina[i].a = ARMEX[el.value].a;
+          confina[i].b = ARMEX[el.value].b;
+        }
+        renderConfTable();
+      } else if (f === 'tipo') {
+        confina[i].tipo = el.value;
+        return; // no afecta cálculos
+      } else if (f === 'clave') {
+        confina[i].clave = el.value;
+        return;
+      } else {
+        confina[i][f] = parseFloat(el.value) || 0;
+        updateConfRow(i);
+      }
+      renderConfResults();
+    });
+  });
+
+  body.querySelectorAll('[data-cdel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      confina.splice(parseInt(btn.dataset.cdel), 1);
+      renderConfTable();
+      renderConfResults();
+    });
+  });
+}
+
+function updateConfRow(i) {
+  const c = calcConf(confina[i], getCP());
+  const row = document.querySelectorAll('#conf-body tr')[i];
+  if (!row) return;
+  const comp = row.querySelectorAll('td.computed');
+  if (comp[0]) comp[0].textContent = c.volConcM.toFixed(3);
+  if (comp[1]) comp[1].textContent = c.largoTot.toFixed(2);
+}
+
+function renderConfResults() {
+  const cp = getCP();
+  let totConc = 0, totCimbra = 0;
+  const porArmex = {};   // ml por tipo de armex
+  const porTipo  = {};   // resumen por castillo/dala
+
+  confina.forEach(e => {
+    const c = calcConf(e, cp);
+    totConc   += c.volConcM;
+    totCimbra += c.m2Cimbra;
+
+    const ak = e.armex === 'custom' ? `custom_${e.a.toFixed(2)}x${e.b.toFixed(2)}` : e.armex;
+    if (!porArmex[ak]) porArmex[ak] = { armex: e.armex, a: e.a, b: e.b, ml: 0, claves: [] };
+    porArmex[ak].ml += c.largoTot;
+    if (!porArmex[ak].claves.includes(e.clave)) porArmex[ak].claves.push(e.clave);
+
+    const tk = e.tipo;
+    if (!porTipo[tk]) porTipo[tk] = { tipo: e.tipo, conc: 0, cimbra: 0, ml: 0 };
+    porTipo[tk].conc   += c.volConcM;
+    porTipo[tk].cimbra += c.m2Cimbra;
+    porTipo[tk].ml     += c.largoTot;
+  });
+
+  // Materiales del concreto in situ (totConc ya incluye la merma)
+  const totArena = totConc * cp.arena;
+  const totGrava = totConc * cp.grava;
+  const totAguaL = totConc * cp.agua;
+  const totCemSacos = totConc * cp.cem;
+
+  // Armex total y tramos
+  let totMlArmex = 0;
+  Object.values(porArmex).forEach(p => { totMlArmex += p.ml; });
+  const mlConMerma = totMlArmex * (1 + cp.mermaArmex / 100);
+  const totTramos  = cp.tramo > 0 ? Math.ceil(mlConMerma / cp.tramo) : 0;
+
+  document.getElementById('conf-totals').innerHTML = `
+    <div class="total-card accent-green">
+      <div class="total-label">Concreto f'c=${fmt(cp.fc,0)} (c/merma)</div>
+      <div class="total-value">${fmt(totConc, 3)}<span class="total-unit">m³</span></div>
+    </div>
+    <div class="total-card accent-blue">
+      <div class="total-label">Armex</div>
+      <div class="total-value">${fmt(totMlArmex, 2)}<span class="total-unit">ml</span></div>
+    </div>
+    <div class="total-card accent-blue">
+      <div class="total-label">Armex (tramos ${fmt(cp.tramo,0)} m)</div>
+      <div class="total-value">${fmtInt(totTramos)}<span class="total-unit">pzas</span></div>
+    </div>
+    <div class="total-card accent-amber">
+      <div class="total-label">Cimbra</div>
+      <div class="total-value">${fmt(totCimbra, 2)}<span class="total-unit">m²</span></div>
+    </div>
+    <div class="total-card">
+      <div class="total-label">Cemento (concreto)</div>
+      <div class="total-value">${fmtInt(totCemSacos)}<span class="total-unit">sacos</span></div>
+    </div>
+  `;
+
+  const tipoLabel = (t) => t === 'castillo' ? 'Castillos' : 'Dalas / cadenas';
+  const armexLabel = (p) => p.armex === 'custom' ? `armado ${fmt(p.a*100,0)}×${fmt(p.b*100,0)} cm` : ARMEX[p.armex].label;
+
+  const elementoRows = Object.values(porTipo).map(p => `
+    <div class="partida-row">
+      <div class="partida-desc">${tipoLabel(p.tipo)} de confinamiento, concreto f'c=${fmt(cp.fc,0)} kg/cm² mezclado en obra, armado con armex y cimbra</div>
+      <div class="partida-val ${p.conc===0?'zero':''}">${fmt(p.conc,3)}</div>
+      <div class="partida-unit">m³</div>
+      <div class="partida-sub">${fmt(p.ml,2)} ml · ${fmt(p.cimbra,2)} m² cimbra</div>
+    </div>`).join('');
+
+  const armexRows = Object.values(porArmex).map(p => {
+    const ml = p.ml * (1 + cp.mermaArmex / 100);
+    const tramos = cp.tramo > 0 ? Math.ceil(ml / cp.tramo) : 0;
+    return `
+    <div class="partida-row">
+      <div class="partida-desc">${armexLabel(p)} para confinamiento (incluye traslapes y desperdicio) — claves ${p.claves.join(', ')}</div>
+      <div class="partida-val ${p.ml===0?'zero':''}">${fmtInt(tramos)}</div>
+      <div class="partida-unit">pzas</div>
+      <div class="partida-sub">${fmt(p.ml,2)} ml + merma = ${fmt(ml,2)} ml</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('conf-partidas').innerHTML = `
+    <div class="partida-group">
+      <div class="partida-group-title">Confinamiento — elementos</div>
+      ${elementoRows || '<div class="partida-row"><div class="partida-desc">Sin elementos capturados</div><div class="partida-val zero">0</div><div class="partida-unit">m³</div></div>'}
+    </div>
+    <div class="partida-group">
+      <div class="partida-group-title">Acero — armex</div>
+      ${armexRows || '<div class="partida-row"><div class="partida-desc">Sin armex</div><div class="partida-val zero">0</div><div class="partida-unit">pzas</div></div>'}
+    </div>
+    <div class="partida-group">
+      <div class="partida-group-title">Concreto mezclado in situ — materiales</div>
+      <div class="partida-row highlight">
+        <div class="partida-desc">Concreto hecho en obra f'c=${fmt(cp.fc,0)} kg/cm² para castillos y dalas (incluye ${fmt(cp.mermaConc,0)}% de desperdicio)</div>
+        <div class="partida-val ${totConc===0?'zero':''}">${fmt(totConc,3)}</div>
+        <div class="partida-unit">m³</div>
+        <div class="partida-sub"></div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Cemento gris en sacos de 50 kg (${fmt(cp.cem,1)} sacos/m³)</div>
+        <div class="partida-val ${totCemSacos===0?'zero':''}">${fmtInt(totCemSacos)}</div>
+        <div class="partida-unit">sacos</div>
+        <div class="partida-sub">${fmt(totCemSacos,1)} exactos · ${fmt(totCemSacos*50/1000,2)} t</div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Arena para concreto (${fmt(cp.arena,2)} m³/m³)</div>
+        <div class="partida-val ${totArena===0?'zero':''}">${fmt(totArena,3)}</div>
+        <div class="partida-unit">m³</div>
+        <div class="partida-sub"></div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Grava para concreto (${fmt(cp.grava,2)} m³/m³)</div>
+        <div class="partida-val ${totGrava===0?'zero':''}">${fmt(totGrava,3)}</div>
+        <div class="partida-unit">m³</div>
+        <div class="partida-sub"></div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Agua para concreto (${fmt(cp.agua,0)} L/m³)</div>
+        <div class="partida-val ${totAguaL===0?'zero':''}">${fmtInt(totAguaL)}</div>
+        <div class="partida-unit">L</div>
+        <div class="partida-sub">${fmt(totAguaL/1000,3)} m³</div>
+      </div>
+    </div>
+    <div class="partida-group">
+      <div class="partida-group-title">Cimbra</div>
+      <div class="partida-row highlight">
+        <div class="partida-desc">Cimbra (obra falsa) en castillos y dalas de confinamiento, incluye habilitado, colocación y descimbrado</div>
+        <div class="partida-val ${totCimbra===0?'zero':''}">${fmt(totCimbra,2)}</div>
+        <div class="partida-unit">m²</div>
+        <div class="partida-sub"></div>
+      </div>
+    </div>
+  `;
+}
+
+function setConfUI(cp) {
+  if (cp.fc        != null) document.getElementById('c-fc').value         = cp.fc;
+  if (cp.tramo     != null) document.getElementById('c-tramo').value      = cp.tramo;
+  if (cp.mermaArmex!= null) document.getElementById('c-merma-armex').value= cp.mermaArmex;
+  if (cp.mermaConc != null) document.getElementById('c-merma-conc').value = cp.mermaConc;
+  if (cp.cem       != null) document.getElementById('c-cem').value        = cp.cem;
+  if (cp.arena     != null) document.getElementById('c-arena').value      = cp.arena;
+  if (cp.grava     != null) document.getElementById('c-grava').value      = cp.grava;
+  if (cp.agua      != null) document.getElementById('c-agua').value       = cp.agua;
+}
+
 // ─── Navegación entre módulos ──────────────────────────────────────────────────
+const VIEWS = ['zapatas', 'muros', 'confinamiento'];
 function showView(v) {
-  document.getElementById('view-zapatas').style.display = v === 'zapatas' ? '' : 'none';
-  document.getElementById('view-muros').style.display   = v === 'muros'   ? '' : 'none';
+  VIEWS.forEach(name => {
+    const el = document.getElementById('view-' + name);
+    if (el) el.style.display = (name === v) ? '' : 'none';
+  });
   document.querySelectorAll('.nav-item[data-view]').forEach(n =>
     n.classList.toggle('active', n.dataset.view === v));
 }
@@ -1151,6 +1510,17 @@ document.getElementById('add-muro-btn').addEventListener('click', () => {
 
 document.querySelectorAll('#muros-params input').forEach(el => {
   el.addEventListener('input', () => { renderMuroTable(); renderMuroResults(); });
+});
+
+document.getElementById('add-conf-btn').addEventListener('click', () => {
+  const last = confina[confina.length - 1];
+  confina.push({ clave: 'C-' + (confina.length + 1), tipo: 'castillo', armex: '15x15', a: 0.15, b: 0.15, longitud: last ? last.longitud : 2.80, caras: 2, cant: 1 });
+  renderConfTable();
+  renderConfResults();
+});
+
+document.querySelectorAll('#conf-params input').forEach(el => {
+  el.addEventListener('input', () => { renderConfTable(); renderConfResults(); });
 });
 
 document.getElementById('add-rel-btn').addEventListener('click', () => {
@@ -1204,7 +1574,9 @@ function setParamsUI(params) {
 }
 
 function saveAll() {
-  const data = { version: 2, params: getParamsObj(), zapatas, rellenos, murosParams: getMP(), muros };
+  const data = { version: 3, params: getParamsObj(), zapatas, rellenos,
+                 murosParams: getMP(), muros,
+                 confinaParams: getCP(), confina };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1224,11 +1596,15 @@ function loadAll(file) {
       if (data.params)      setParamsUI(data.params);
       if (data.muros)       muros = data.muros;
       if (data.murosParams) setMurosUI(data.murosParams);
+      if (data.confina)       confina = data.confina;
+      if (data.confinaParams) setConfUI(data.confinaParams);
       renderTable();
       renderRellenos();
       renderResults();
       renderMuroTable();
       renderMuroResults();
+      renderConfTable();
+      renderConfResults();
     } catch {
       alert('El archivo no es un JSON válido.');
     }
@@ -1238,12 +1614,17 @@ function loadAll(file) {
 
 document.getElementById('btn-save').addEventListener('click', saveAll);
 document.getElementById('btn-save-m').addEventListener('click', saveAll);
+document.getElementById('btn-save-c').addEventListener('click', saveAll);
 
 document.getElementById('inp-load').addEventListener('change', e => {
   loadAll(e.target.files[0]);
   e.target.value = ''; // permite recargar el mismo archivo
 });
 document.getElementById('inp-load-m').addEventListener('change', e => {
+  loadAll(e.target.files[0]);
+  e.target.value = '';
+});
+document.getElementById('inp-load-c').addEventListener('change', e => {
   loadAll(e.target.files[0]);
   e.target.value = '';
 });
@@ -1254,4 +1635,6 @@ renderResults();
 updateMortarUI(false);
 renderMuroTable();
 renderMuroResults();
+renderConfTable();
+renderConfResults();
 </script>
