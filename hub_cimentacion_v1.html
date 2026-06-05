@@ -288,6 +288,14 @@
           </select>
           <span class="unit-hint">premezclado o mezclado en obra</span>
         </div>
+        <div class="field" id="field-saco">
+          <label>Tamaño de saco</label>
+          <select id="m-saco-kg">
+            <option value="50" selected>50 kg</option>
+            <option value="25">25 kg</option>
+          </select>
+          <span class="unit-hint">peso del saco premezclado</span>
+        </div>
         <div class="field" id="field-mezcla" style="display:none;">
           <label>Proporción (cem:arena)</label>
           <select id="m-mezcla">
@@ -871,8 +879,9 @@ let muros = [
 // Sacos de cemento (50 kg) por m³ de mortero, mezclado en obra, según proporción cemento:arena
 const SACOS_POR_M3 = { 3: 10.0, 4: 7.5, 5: 6.0, 6: 5.0 };
 const ARENA_POR_M3 = 1.05; // m³ de arena por m³ de mortero (aprox.)
-// Mortero premezclado en saco: 1 saco 50 kg ≈ 0.028 m³ → ~36 sacos/m³
-const SACOS_PREMEZCLADO_M3 = 36;
+// Mortero premezclado en saco: 1 saco 50 kg ≈ 0.028 m³ → ~36 sacos/m³ (25 kg → ~72)
+const SACOS_PREMEZCLADO = { 50: 36, 25: 72 };
+const DENS_MORTERO_OBRA = 2000; // kg/m³ de mortero fresco cemento-arena (aprox.)
 
 function getMP() {
   return {
@@ -880,6 +889,7 @@ function getMP() {
     merma:   parseFloat(document.getElementById('m-merma').value)  || 0, // %
     tarima:  parseFloat(document.getElementById('m-tarima').value) || 0, // pza/tarima
     tipo:    document.getElementById('m-tipomortero').value,             // 'premezclado' | 'cemarena'
+    sacoKg:  parseFloat(document.getElementById('m-saco-kg').value) || 50,// 25 | 50
     mezcla:  document.getElementById('m-mezcla').value,                  // '3'..'6'
     sacosM3: parseFloat(document.getElementById('m-sacos').value)  || 0, // sacos/m³
   };
@@ -1003,6 +1013,9 @@ function renderMuroResults() {
   const totSacos   = totMortero * gp.sacosM3;                    // sacos (premezclado o de cemento)
   const totArena   = isPremezclado ? 0 : totMortero * ARENA_POR_M3; // arena solo si se mezcla en obra
   const sacosLabel = isPremezclado ? 'Mortero premezclado (sacos)' : `Cemento — mortero (1:${gp.mezcla})`;
+  // Toneladas de mortero: premezclado = sacos × peso del saco; en obra = volumen × densidad fresca
+  const densMortero  = isPremezclado ? gp.sacosM3 * gp.sacoKg : DENS_MORTERO_OBRA;
+  const totToneladas = totMortero * densMortero / 1000;
 
   document.getElementById('muro-totals').innerHTML = `
     <div class="total-card accent-blue">
@@ -1020,6 +1033,10 @@ function renderMuroResults() {
     <div class="total-card accent-amber">
       <div class="total-label">Mortero de junteo (aprox.)</div>
       <div class="total-value">${fmt(totMortero, 3)}<span class="total-unit">m³</span></div>
+    </div>
+    <div class="total-card accent-amber">
+      <div class="total-label">Mortero (toneladas)</div>
+      <div class="total-value">${fmt(totToneladas, 2)}<span class="total-unit">t</span></div>
     </div>
     <div class="total-card accent-green">
       <div class="total-label">${sacosLabel}</div>
@@ -1059,15 +1076,15 @@ function renderMuroResults() {
         <div class="partida-desc">Mortero de junteo de piezas — ${isPremezclado ? 'mortero premezclado en saco' : 'mezcla cemento-arena en obra proporción 1:'+gp.mezcla} (volumen aproximado, junta de ${fmt(gp.junta,1)} cm)</div>
         <div class="partida-val ${totMortero===0?'zero':''}">${fmt(totMortero, 3)}</div>
         <div class="partida-unit">m³</div>
-        <div class="partida-sub"></div>
+        <div class="partida-sub">${fmt(totToneladas,2)} t</div>
       </div>
       <div class="partida-row">
         <div class="partida-desc">${isPremezclado
-            ? `Mortero premezclado para albañilería en saco de 50 kg (rend. ${fmt(gp.sacosM3,1)} sacos/m³ ≈ ${(1/gp.sacosM3).toFixed(3)} m³/saco)`
+            ? `Mortero premezclado para albañilería en saco de ${fmt(gp.sacoKg,0)} kg (rend. ${fmt(gp.sacosM3,1)} sacos/m³ ≈ ${(1/gp.sacosM3).toFixed(3)} m³/saco)`
             : `Cemento gris tipo CPC 30R en sacos de 50 kg para el mortero (${fmt(gp.sacosM3,1)} sacos/m³)`}</div>
         <div class="partida-val ${totSacos===0?'zero':''}">${fmtInt(totSacos)}</div>
         <div class="partida-unit">sacos</div>
-        <div class="partida-sub">${fmt(totSacos,1)} sacos exactos</div>
+        <div class="partida-sub">${fmt(totSacos,1)} sacos · ${fmt(totToneladas,2)} t</div>
       </div>
       ${isPremezclado ? '' : `
       <div class="partida-row">
@@ -1085,29 +1102,37 @@ function setMurosUI(mp) {
   document.getElementById('m-merma').value  = mp.merma;
   document.getElementById('m-tarima').value = mp.tarima ?? 0;
   if (mp.tipo    != null) document.getElementById('m-tipomortero').value = mp.tipo;
+  if (mp.sacoKg  != null) document.getElementById('m-saco-kg').value = mp.sacoKg;
   if (mp.mezcla  != null) document.getElementById('m-mezcla').value = mp.mezcla;
   if (mp.sacosM3 != null) document.getElementById('m-sacos').value  = mp.sacosM3;
   updateMortarUI(false);
 }
 
-// Muestra/oculta la proporción y ajusta etiqueta + sacos sugeridos según el tipo de mortero
+// Muestra/oculta proporción y tamaño de saco; ajusta etiqueta + sacos sugeridos según el tipo
 function updateMortarUI(resetSacos) {
-  const tipo  = document.getElementById('m-tipomortero').value;
-  const isPre = tipo === 'premezclado';
-  const n     = document.getElementById('m-mezcla').value;
+  const isPre  = document.getElementById('m-tipomortero').value === 'premezclado';
+  const n      = document.getElementById('m-mezcla').value;
+  const sacoKg = parseFloat(document.getElementById('m-saco-kg').value) || 50;
   document.getElementById('field-mezcla').style.display = isPre ? 'none' : '';
+  document.getElementById('field-saco').style.display   = isPre ? '' : 'none';
   document.getElementById('m-sacos-label').textContent  = isPre ? 'Sacos por m³' : 'Sacos cemento/m³';
   document.getElementById('m-sacos-hint').textContent   = isPre
-    ? 'saco premezclado ≈ 0.028 m³'
+    ? `saco ${sacoKg} kg ≈ ${(1 / (SACOS_PREMEZCLADO[sacoKg] ?? 36)).toFixed(3)} m³`
     : `mezcla 1:${n} · saco 50 kg`;
   if (resetSacos) {
     document.getElementById('m-sacos').value = isPre
-      ? SACOS_PREMEZCLADO_M3
+      ? (SACOS_PREMEZCLADO[sacoKg] ?? 36)
       : (SACOS_POR_M3[n] ?? 6).toFixed(1);
   }
 }
 
 document.getElementById('m-tipomortero').addEventListener('change', () => {
+  updateMortarUI(true);
+  renderMuroResults();
+});
+
+// Al cambiar el tamaño del saco premezclado, recalcula los sacos/m³ sugeridos
+document.getElementById('m-saco-kg').addEventListener('change', () => {
   updateMortarUI(true);
   renderMuroResults();
 });
