@@ -133,6 +133,7 @@
       <div class="sub-item">Excavación</div>
     </div>
     <div class="nav-item" data-view="confinamiento"><span class="nav-icon">⬜</span><span>Confinamiento</span></div>
+    <div class="nav-item" data-view="acero"><span class="nav-icon">▥</span><span>Acero</span></div>
     <div class="nav-item" data-view="muros"><span class="nav-icon">◫</span><span>Muros</span></div>
     <div class="nav-item coming"><span class="nav-icon">⊞</span><span>Losas</span><span class="badge">pronto</span></div>
     <div class="nav-item coming"><span class="nav-icon">◈</span><span>Trazo</span><span class="badge">pronto</span></div>
@@ -431,6 +432,121 @@
       <div class="section-label">Partidas de obra</div>
       <div class="partidas" id="conf-partidas"></div>
     </div><!-- /view-confinamiento -->
+
+    <div id="view-acero" style="display:none;">
+      <div class="module-header">
+        <div class="module-title">Acero — generador de acero de refuerzo</div>
+        <div class="module-desc">Define el armado de cada elemento, calcula pesos por calibre y exporta los generadores de acero a Excel</div>
+      </div>
+
+      <div class="toolbar">
+        <button class="tool-btn primary" id="btn-save-a">💾 Guardar cuantificación</button>
+        <label class="tool-btn" style="margin:0;">
+          📂 Cargar cuantificación
+          <input type="file" id="inp-load-a" accept=".json" style="display:none;">
+        </label>
+        <button class="tool-btn" id="btn-export-acero">📊 Exportar generadores (Excel)</button>
+      </div>
+
+      <!-- Parámetros del proyecto -->
+      <div class="section-label">Parámetros del proyecto</div>
+      <div class="params-grid" id="acero-params">
+        <div class="field">
+          <label>Proyecto</label>
+          <input type="text" id="a-proyecto" value="Proyecto">
+          <span class="unit-hint">nombre para el archivo</span>
+        </div>
+        <div class="field">
+          <label>Factor de desperdicio</label>
+          <input type="number" id="a-desp" value="1.07" step="0.01" min="1">
+          <span class="unit-hint">acero c/desperdicio</span>
+        </div>
+        <div class="field">
+          <label>Recubrimiento</label>
+          <input type="number" id="a-rec" value="0.04" step="0.005" min="0">
+          <span class="unit-hint">m (descuento por cara)</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Catálogo de calibres (editable)</div>
+      <p class="tip">Define el peso real (kg/m), gancho y escuadra de cada calibre del proyecto. Marca "Resumen" para los calibres que aparecen desglosados en el resumen y la exportación.</p>
+      <div class="table-wrap" style="margin-top:10px;">
+        <table class="rel-table" style="min-width:560px;">
+          <thead>
+            <tr>
+              <th>Calibre ∅</th>
+              <th class="num">Peso (kg/m)</th>
+              <th class="num">Gancho (m)</th>
+              <th class="num">Escuadra (m)</th>
+              <th class="ctr">Resumen</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="acero-cal-body"></tbody>
+        </table>
+      </div>
+      <button class="add-btn" id="add-cal-btn">+ Agregar calibre</button>
+
+      <div class="divider"></div>
+      <div class="section-label">Elementos estructurales</div>
+      <p class="tip">Captura los elementos a armar (cualquier tipo). Pulsa "Armar" para editar el armado de varilla de cada uno. Largo / Ancho / Peralte / Altura en metros.</p>
+      <div class="table-wrap" style="margin-top:10px;">
+        <table class="zap-table">
+          <thead>
+            <tr>
+              <th>Clave</th>
+              <th>Tipo</th>
+              <th class="num">Largo (m)</th>
+              <th class="num">Ancho (m)</th>
+              <th class="num">Peralte (m)</th>
+              <th class="num">Altura (m)</th>
+              <th class="num">Cant.</th>
+              <th class="num">Acero s/d (kg)</th>
+              <th class="num">Acero c/d (kg)</th>
+              <th></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="acero-elem-body"></tbody>
+        </table>
+      </div>
+      <button class="add-btn" id="add-aelem-btn">+ Agregar elemento</button>
+
+      <div class="divider"></div>
+      <div class="section-label" id="acero-arm-label">Armado del elemento</div>
+      <p class="tip" id="acero-arm-tip">Selecciona "Armar" en un elemento para editar su armado.</p>
+      <div class="table-wrap" style="margin-top:10px;">
+        <table class="zap-table" id="acero-arm-table" style="min-width:1000px;">
+          <thead>
+            <tr>
+              <th>Sub-elem</th>
+              <th>Concepto</th>
+              <th>∅</th>
+              <th class="num">Largo (m)</th>
+              <th class="num">Gancho</th>
+              <th class="num">Escuadra</th>
+              <th class="num">Long total</th>
+              <th class="num">Sep (m)</th>
+              <th class="num">Piezas</th>
+              <th class="num">Largo man.</th>
+              <th class="num">Peso unit (kg)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="acero-arm-body"></tbody>
+        </table>
+      </div>
+      <button class="add-btn" id="add-arm-btn" style="display:none;">+ Agregar fila de armado</button>
+
+      <div class="divider"></div>
+      <div class="section-label">Totales de acero</div>
+      <div class="totals-row" id="acero-totals"></div>
+
+      <div class="divider"></div>
+      <div class="section-label">Resumen por calibre</div>
+      <div class="partidas" id="acero-resumen"></div>
+    </div><!-- /view-acero -->
   </div>
 </div>
 
@@ -1488,8 +1604,513 @@ function setConfUI(cp) {
   if (cp.agua      != null) document.getElementById('c-agua').value       = cp.agua;
 }
 
+// ─── Acero: generador de acero de refuerzo ─────────────────────────────────────
+// Catálogo de calibres (presets de EJEMPLO, todos editables por el usuario/proyecto)
+let aceroCalibres = [
+  { dia: '#2.5', kgm: 0.388, gancho: 0.10, escuadra: 0.08, resumen: false },
+  { dia: '#3',   kgm: 0.557, gancho: 0.12, escuadra: 0.09, resumen: true  },
+  { dia: '#4',   kgm: 0.994, gancho: 0.16, escuadra: 0.12, resumen: true  },
+  { dia: '#5',   kgm: 1.552, gancho: 0.20, escuadra: 0.15, resumen: true  },
+  { dia: '#6',   kgm: 2.235, gancho: 0.24, escuadra: 0.18, resumen: true  },
+  { dia: '#8',   kgm: 3.973, gancho: 0.32, escuadra: 0.24, resumen: false },
+];
+
+let aceroParams = { proyecto: 'Proyecto', desperdicio: 1.07, rec: 0.04 };
+
+// Conceptos sugeridos por tipo de elemento (catálogo abierto: el usuario puede escribir otros)
+const CONCEPTOS = {
+  zapata:      ['PARRILLA X (inf)', 'PARRILLA Y (inf)', 'PARRILLA X (sup)', 'PARRILLA Y (sup)'],
+  contratrabe: ['LONGITUDINAL SUP', 'LONGITUDINAL INF', 'ESTRIBO'],
+  trabe:       ['LONGITUDINAL SUP', 'LONGITUDINAL INF', 'ESTRIBO'],
+  columna:     ['VERTICAL', 'ESTRIBO'],
+  castillo:    ['VERTICAL', 'ESTRIBO'],
+  dala:        ['LONGITUDINAL', 'ESTRIBO'],
+  muro:        ['VERTICAL', 'HORIZONTAL'],
+  losa:        ['LONGITUDINAL', 'TRANSVERSAL (temp.)'],
+  otro:        ['LONGITUDINAL', 'TRANSVERSAL', 'ESTRIBO'],
+};
+const TIPOS_ELEM = ['zapata', 'contratrabe', 'trabe', 'columna', 'castillo', 'dala', 'muro', 'losa', 'otro'];
+
+// Armado por defecto y razonable por tipo (configurable; el usuario lo edita libremente)
+function defaultArmado(tipo) {
+  const a = (subElem, concepto, dia, sep, piezas) => ({ subElem, concepto, dia, sep: sep || 0, piezas: piezas || 0, largoOverride: 0 });
+  switch (tipo) {
+    case 'zapata':      return [a('zapata','PARRILLA X (inf)','#4',0.15,0), a('zapata','PARRILLA Y (inf)','#4',0.15,0)];
+    case 'contratrabe': return [a('contratrabe','LONGITUDINAL SUP','#5',0,2), a('contratrabe','LONGITUDINAL INF','#5',0,2), a('contratrabe','ESTRIBO','#3',0.20,0)];
+    case 'trabe':       return [a('trabe','LONGITUDINAL SUP','#4',0,2), a('trabe','LONGITUDINAL INF','#4',0,2), a('trabe','ESTRIBO','#3',0.20,0)];
+    case 'columna':     return [a('columna','VERTICAL','#5',0,4), a('columna','ESTRIBO','#3',0.20,0)];
+    case 'castillo':    return [a('castillo','VERTICAL','#3',0,4), a('castillo','ESTRIBO','#2.5',0.20,0)];
+    case 'dala':        return [a('dala','LONGITUDINAL','#3',0,4), a('dala','ESTRIBO','#2.5',0.20,0)];
+    case 'muro':        return [a('muro','VERTICAL','#3',0.30,0), a('muro','HORIZONTAL','#3',0.30,0)];
+    case 'losa':        return [a('losa','LONGITUDINAL','#3',0.20,0), a('losa','TRANSVERSAL (temp.)','#3',0.25,0)];
+    default:            return [a('otro','LONGITUDINAL','#4',0,2)];
+  }
+}
+
+let aceroElems = [
+  { clave: 'Z-1',  tipo: 'zapata',      largo: 1.10, ancho: 1.10, peralte: 0.25, altura: 0,    cant: 8, armado: defaultArmado('zapata') },
+  { clave: 'CT-1', tipo: 'contratrabe', largo: 27.40, ancho: 0.20, peralte: 0.60, altura: 0,   cant: 1, armado: defaultArmado('contratrabe') },
+  { clave: 'K-1',  tipo: 'columna',     largo: 0,    ancho: 0.30, peralte: 0.30, altura: 3.00,  cant: 6, armado: defaultArmado('columna') },
+];
+let aceroActivo = null; // índice del elemento cuyo armado se edita
+
+function getACP() {
+  return {
+    proyecto:    document.getElementById('a-proyecto').value || 'Proyecto',
+    desperdicio: parseFloat(document.getElementById('a-desp').value) || 1,
+    rec:         parseFloat(document.getElementById('a-rec').value)  || 0,
+  };
+}
+
+function calibrePorDia(dia) { return aceroCalibres.find(c => c.dia === dia) || null; }
+
+// Sentido de la varilla según el concepto (catálogo abierto, se infiere por palabra clave)
+function sentidoConcepto(concepto) {
+  const c = (concepto || '').toUpperCase();
+  if (c.includes('ESTRIBO') || c.includes('ANILLO')) return 'estribo';
+  if (c.includes('VERTICAL')) return 'vert';
+  if (c.includes('HORIZONTAL')) return 'horiz';
+  if (c.includes('TRANSVERSAL') || c.includes('PARRILLA Y') || /\bY\b/.test(c)) return 'tran';
+  return 'long'; // LONGITUDINAL, PARRILLA X, etc.
+}
+
+// Núcleo universal: determina largo, long total, piezas y peso unitario de un item de armado
+function calcItem(el, item, acp) {
+  const cal = calibrePorDia(item.dia);
+  const rec = acp.rec || 0;
+  const L = el.largo || 0, A = el.ancho || 0, H = el.peralte || 0, Ht = el.altura || 0;
+  const s = sentidoConcepto(item.concepto);
+
+  let largo;
+  if (item.largoOverride && item.largoOverride > 0) {
+    largo = item.largoOverride;
+  } else if (s === 'long' || s === 'horiz') {
+    largo = Math.max(0, L - 2 * rec);
+  } else if (s === 'tran') {
+    largo = Math.max(0, A - 2 * rec);
+  } else if (s === 'vert') {
+    largo = Math.max(0, Ht + H); // altura + anclaje al peralte
+  } else { // estribo = perímetro de la sección (ancho × peralte)
+    largo = Math.max(0, 2 * ((A - 2 * rec) + (H - 2 * rec)));
+  }
+
+  const gancho   = cal ? cal.gancho : 0;
+  const escuadra = cal ? cal.escuadra : 0;
+  const longTotal = largo + gancho + escuadra;
+
+  // Piezas: por separación (se reparten a lo largo de la dimensión paralela) o directas
+  let piezas = item.piezas || 0;
+  if (item.sep && item.sep > 0) {
+    const paralelo = (s === 'long')  ? A
+                   : (s === 'tran')  ? L
+                   : (s === 'horiz') ? Ht
+                   :                   L; // vert y estribo se reparten a lo largo de L
+    piezas = Math.ceil(Math.max(0, paralelo - 2 * rec) / item.sep) + 1;
+  }
+
+  const kgm = cal ? cal.kgm : 0;
+  const pesoUnit = piezas * longTotal * kgm;
+  return { largo, gancho, escuadra, longTotal, piezas, kgm, pesoUnit, sentido: s };
+}
+
+function calcElem(el, acp) {
+  const porCal = {};
+  let kgSD = 0;
+  const items = (el.armado || []).map(it => {
+    const r = calcItem(el, it, acp);
+    const pesoTotal = r.pesoUnit * (el.cant || 1);
+    kgSD += pesoTotal;
+    porCal[it.dia] = (porCal[it.dia] || 0) + pesoTotal;
+    return Object.assign({}, it, r, { pesoTotal });
+  });
+  const kgCD = kgSD * (acp.desperdicio || 1);
+  return { items, porCal, kgSD, kgCD };
+}
+
+// ─── Render: catálogo de calibres ──────────────────────────────────────────────
+function renderCalibres() {
+  const body = document.getElementById('acero-cal-body');
+  body.innerHTML = '';
+  aceroCalibres.forEach((c, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="inp-sm inp-clave" data-cal="${i}" data-cf="dia" value="${c.dia}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.001" min="0" data-cal="${i}" data-cf="kgm" value="${c.kgm}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.01" min="0" data-cal="${i}" data-cf="gancho" value="${c.gancho}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.01" min="0" data-cal="${i}" data-cf="escuadra" value="${c.escuadra}"></td>
+      <td class="ctr"><input type="checkbox" data-cal="${i}" data-cf="resumen" ${c.resumen ? 'checked' : ''}></td>
+      <td><button class="del-btn" data-caldel="${i}">✕</button></td>
+    `;
+    body.appendChild(tr);
+  });
+  body.querySelectorAll('[data-cal]').forEach(el => {
+    el.addEventListener('change', () => {
+      const i = parseInt(el.dataset.cal), f = el.dataset.cf;
+      if (f === 'resumen') aceroCalibres[i].resumen = el.checked;
+      else if (f === 'dia') aceroCalibres[i].dia = el.value;
+      else aceroCalibres[i][f] = parseFloat(el.value) || 0;
+      renderAceroElems(); renderArmado(); renderAceroResults();
+    });
+  });
+  body.querySelectorAll('[data-caldel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      aceroCalibres.splice(parseInt(btn.dataset.caldel), 1);
+      renderCalibres(); renderAceroElems(); renderArmado(); renderAceroResults();
+    });
+  });
+}
+
+// ─── Render: elementos ─────────────────────────────────────────────────────────
+function renderAceroElems() {
+  const acp = getACP();
+  const body = document.getElementById('acero-elem-body');
+  body.innerHTML = '';
+  aceroElems.forEach((el, i) => {
+    const c = calcElem(el, acp);
+    const tr = document.createElement('tr');
+    if (i === aceroActivo) tr.style.background = 'color-mix(in srgb, #1D9E75 7%, transparent)';
+    tr.innerHTML = `
+      <td><input class="inp-sm inp-clave" data-ae="${i}" data-af="clave" value="${el.clave}"></td>
+      <td>
+        <select class="inp-sm inp-tipo" data-ae="${i}" data-af="tipo">
+          ${TIPOS_ELEM.map(t => `<option value="${t}" ${el.tipo===t?'selected':''}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('')}
+        </select>
+      </td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-ae="${i}" data-af="largo" value="${(el.largo||0).toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-ae="${i}" data-af="ancho" value="${(el.ancho||0).toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-ae="${i}" data-af="peralte" value="${(el.peralte||0).toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-ae="${i}" data-af="altura" value="${(el.altura||0).toFixed(2)}"></td>
+      <td class="num"><input class="inp-sm inp-cant" type="number" step="1" min="1" data-ae="${i}" data-af="cant" value="${el.cant}"></td>
+      <td class="num computed">${fmt(c.kgSD,2)}</td>
+      <td class="num computed">${fmt(c.kgCD,2)}</td>
+      <td><button class="add-btn" style="margin:0;padding:3px 9px" data-armar="${i}">Armar ✎</button></td>
+      <td><button class="del-btn" data-aedel="${i}">✕</button></td>
+    `;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('[data-ae]').forEach(el => {
+    el.addEventListener('change', () => {
+      const i = parseInt(el.dataset.ae), f = el.dataset.af;
+      if (f === 'tipo') {
+        aceroElems[i].tipo = el.value;
+        if (!aceroElems[i].armado || aceroElems[i].armado.length === 0) aceroElems[i].armado = defaultArmado(el.value);
+        if (i === aceroActivo) renderArmado();
+      } else if (f === 'clave') {
+        aceroElems[i].clave = el.value;
+      } else {
+        aceroElems[i][f] = parseFloat(el.value) || 0;
+        if (i === aceroActivo) renderArmado();
+      }
+      renderAceroElems(); renderAceroResults();
+    });
+  });
+  body.querySelectorAll('[data-armar]').forEach(btn => {
+    btn.addEventListener('click', () => { aceroActivo = parseInt(btn.dataset.armar); renderAceroElems(); renderArmado(); });
+  });
+  body.querySelectorAll('[data-aedel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.aedel);
+      aceroElems.splice(i, 1);
+      if (aceroActivo === i) aceroActivo = null;
+      else if (aceroActivo > i) aceroActivo--;
+      renderAceroElems(); renderArmado(); renderAceroResults();
+    });
+  });
+}
+
+// ─── Render: armado del elemento activo ────────────────────────────────────────
+function renderArmado() {
+  const acp = getACP();
+  const body = document.getElementById('acero-arm-body');
+  const label = document.getElementById('acero-arm-label');
+  const tip = document.getElementById('acero-arm-tip');
+  const addBtn = document.getElementById('add-arm-btn');
+  body.innerHTML = '';
+
+  if (aceroActivo == null || !aceroElems[aceroActivo]) {
+    label.textContent = 'Armado del elemento';
+    tip.textContent = 'Selecciona "Armar" en un elemento para editar su armado.';
+    addBtn.style.display = 'none';
+    return;
+  }
+  const el = aceroElems[aceroActivo];
+  label.textContent = `Armado del elemento ${el.clave} (${el.tipo})`;
+  tip.textContent = 'Longitudinales corren el largo; transversales el ancho; estribos = perímetro de la sección; verticales = altura+peralte. "Sep" calcula las piezas; "Largo man." pisa el largo automático.';
+  addBtn.style.display = '';
+
+  // Datalist de conceptos sugeridos para este tipo (catálogo abierto)
+  let dl = document.getElementById('conc-' + el.tipo);
+  if (!dl) { dl = document.createElement('datalist'); dl.id = 'conc-' + el.tipo; document.body.appendChild(dl); }
+  dl.innerHTML = (CONCEPTOS[el.tipo] || []).map(x => `<option value="${x}">`).join('');
+
+  const diaOpts = aceroCalibres.map(c => c.dia);
+  (el.armado || []).forEach((it, j) => {
+    const r = calcItem(el, it, acp);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="inp-sm inp-tipo" data-arm="${j}" data-rf="subElem" value="${it.subElem||''}" list="conc-${el.tipo}"></td>
+      <td><input class="inp-sm" style="width:150px" data-arm="${j}" data-rf="concepto" value="${it.concepto||''}" list="conc-${el.tipo}"></td>
+      <td>
+        <select class="inp-sm" style="width:64px" data-arm="${j}" data-rf="dia">
+          ${diaOpts.map(d => `<option value="${d}" ${it.dia===d?'selected':''}>${d}</option>`).join('')}
+        </select>
+      </td>
+      <td class="num computed">${fmt(r.largo,3)}</td>
+      <td class="num">${fmt(r.gancho,2)}</td>
+      <td class="num">${fmt(r.escuadra,2)}</td>
+      <td class="num computed">${fmt(r.longTotal,3)}</td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.01" min="0" data-arm="${j}" data-rf="sep" value="${it.sep||0}"></td>
+      <td class="num">${it.sep>0 ? fmt(r.piezas,0)+' ⚙' : `<input class="inp-sm inp-cant" type="number" step="1" min="0" data-arm="${j}" data-rf="piezas" value="${it.piezas||0}">`}</td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.01" min="0" data-arm="${j}" data-rf="largoOverride" value="${it.largoOverride||0}"></td>
+      <td class="num computed">${fmt(r.pesoUnit,2)}</td>
+      <td><button class="del-btn" data-armdel="${j}">✕</button></td>
+    `;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('[data-arm]').forEach(elx => {
+    elx.addEventListener('change', () => {
+      const j = parseInt(elx.dataset.arm), f = elx.dataset.rf;
+      if (f === 'subElem' || f === 'concepto' || f === 'dia') el.armado[j][f] = elx.value;
+      else el.armado[j][f] = parseFloat(elx.value) || 0;
+      renderArmado(); renderAceroElems(); renderAceroResults();
+    });
+  });
+  body.querySelectorAll('[data-armdel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.armado.splice(parseInt(btn.dataset.armdel), 1);
+      renderArmado(); renderAceroElems(); renderAceroResults();
+    });
+  });
+}
+
+// ─── Agregación global y resultados ────────────────────────────────────────────
+function aceroAgregado() {
+  const acp = getACP();
+  const porCalibre = {};   // dia -> kg s/d
+  const porTipo = {};      // tipo -> { kgSD, kgCD, porCal }
+  let kgSD = 0;
+  aceroElems.forEach(el => {
+    const c = calcElem(el, acp);
+    kgSD += c.kgSD;
+    if (!porTipo[el.tipo]) porTipo[el.tipo] = { kgSD: 0, kgCD: 0, porCal: {} };
+    porTipo[el.tipo].kgSD += c.kgSD;
+    porTipo[el.tipo].kgCD += c.kgCD;
+    Object.entries(c.porCal).forEach(([d, kg]) => {
+      porCalibre[d] = (porCalibre[d] || 0) + kg;
+      porTipo[el.tipo].porCal[d] = (porTipo[el.tipo].porCal[d] || 0) + kg;
+    });
+  });
+  const kgCD = kgSD * (acp.desperdicio || 1);
+  return { porCalibre, porTipo, kgSD, kgCD, acp };
+}
+
+function renderAceroResults() {
+  const ag = aceroAgregado();
+  document.getElementById('acero-totals').innerHTML = `
+    <div class="total-card accent-green">
+      <div class="total-label">Acero total s/d</div>
+      <div class="total-value">${fmt(ag.kgSD,2)}<span class="total-unit">kg</span></div>
+    </div>
+    <div class="total-card accent-amber">
+      <div class="total-label">Acero total c/desperdicio</div>
+      <div class="total-value">${fmt(ag.kgCD,2)}<span class="total-unit">kg</span></div>
+    </div>
+    <div class="total-card accent-blue">
+      <div class="total-label">Acero total c/d</div>
+      <div class="total-value">${fmt(ag.kgCD/1000,3)}<span class="total-unit">t</span></div>
+    </div>
+  `;
+
+  // Resumen por calibre (solo los marcados "Resumen", + "otros")
+  const resumenDias = aceroCalibres.filter(c => c.resumen).map(c => c.dia);
+  const rows = Object.entries(ag.porCalibre)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([d, kg]) => {
+      const cd = kg * (ag.acp.desperdicio || 1);
+      const tag = resumenDias.includes(d) ? '' : ' <span style="font-size:10px;color:var(--color-text-tertiary)">(no resumen)</span>';
+      return `
+        <div class="partida-row">
+          <div class="partida-desc">Varilla ${d}${tag}</div>
+          <div class="partida-val ${kg===0?'zero':''}">${fmt(cd,2)}</div>
+          <div class="partida-unit">kg</div>
+          <div class="partida-sub">s/d: ${fmt(kg,2)} kg</div>
+        </div>`;
+    }).join('');
+
+  const tipoRows = Object.entries(ag.porTipo).map(([t, v]) => `
+      <div class="partida-row">
+        <div class="partida-desc">${t.charAt(0).toUpperCase()+t.slice(1)}</div>
+        <div class="partida-val ${v.kgCD===0?'zero':''}">${fmt(v.kgCD,2)}</div>
+        <div class="partida-unit">kg</div>
+        <div class="partida-sub">s/d: ${fmt(v.kgSD,2)} kg</div>
+      </div>`).join('');
+
+  document.getElementById('acero-resumen').innerHTML = `
+    <div class="partida-group">
+      <div class="partida-group-title">Por calibre (c/desperdicio)</div>
+      ${rows || '<div class="partida-row"><div class="partida-desc">Sin acero capturado</div><div class="partida-val zero">0</div><div class="partida-unit">kg</div></div>'}
+    </div>
+    <div class="partida-group">
+      <div class="partida-group-title">Por tipo de elemento (c/desperdicio)</div>
+      ${tipoRows || ''}
+    </div>
+  `;
+}
+
+function setAceroUI(ap) {
+  if (!ap) return;
+  if (ap.proyecto    != null) document.getElementById('a-proyecto').value = ap.proyecto;
+  if (ap.desperdicio != null) document.getElementById('a-desp').value     = ap.desperdicio;
+  if (ap.rec         != null) document.getElementById('a-rec').value      = ap.rec;
+}
+
+// ─── Slugs para el master / WBS ────────────────────────────────────────────────
+// Devuelve { 'acero.<subelem>.<concepto>': kgCD, 'acero.tipo.<tipo>': kgCD, 'acero.total': kgCD }
+function getAceroSlugs() {
+  const acp = getACP();
+  const slugs = {};
+  const norm = s => (s || 'na').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  let total = 0;
+  aceroElems.forEach(el => {
+    const c = calcElem(el, acp);
+    c.items.forEach(it => {
+      const key = `acero.${norm(it.subElem || el.tipo)}.${norm(it.concepto)}`;
+      const kgCD = it.pesoTotal * (acp.desperdicio || 1);
+      slugs[key] = (slugs[key] || 0) + kgCD;
+    });
+    const tk = `acero.tipo.${norm(el.tipo)}`;
+    slugs[tk] = (slugs[tk] || 0) + c.kgCD;
+    total += c.kgCD;
+  });
+  slugs['acero.total'] = total;
+  return slugs;
+}
+window.getAceroSlugs = getAceroSlugs; // expuesto para el módulo de mapeo/master
+
+// ─── Concreto por f'c (opcional, leído de otros módulos si existen) ─────────────
+function getConcretoPorFc() {
+  const out = {};
+  try {
+    const p = getP();
+    let volZap = 0, volDado = 0, volPlant = 0;
+    zapatas.forEach(z => { const c = calcZapata(z, p); volZap += c.volZap; volDado += c.volDado; volPlant += c.volPlant; });
+    const cz = volZap + volDado;
+    if (cz > 0) out["250"] = (out["250"] || 0) + cz;
+    if (volPlant > 0) out["100"] = (out["100"] || 0) + volPlant;
+  } catch (e) {}
+  try {
+    const cp = getCP();
+    let v = 0; confina.forEach(e => { v += calcConf(e, cp).volConcM; });
+    if (v > 0) out[String(cp.fc)] = (out[String(cp.fc)] || 0) + v;
+  } catch (e) {}
+  return out;
+}
+
+// ─── Exportación a Excel (SheetJS, cargado dinámicamente) ──────────────────────
+let xlsxPromise = null;
+function ensureXLSX() {
+  if (window.XLSX) return Promise.resolve();
+  if (!xlsxPromise) {
+    xlsxPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('No se pudo cargar SheetJS'));
+      document.head.appendChild(s);
+    });
+  }
+  return xlsxPromise;
+}
+
+function buildAceroWorkbook() {
+  const acp = getACP();
+  const ag = aceroAgregado();
+  const resumenDias = aceroCalibres.filter(c => c.resumen).map(c => c.dia);
+  const diasOrden = (aceroCalibres.map(c => c.dia)); // orden del catálogo
+  const wb = XLSX.utils.book_new();
+
+  // ── Hoja RESUMEN ──
+  const resumen = [];
+  resumen.push([`GENERADORES DE ACERO — ${acp.proyecto}`]);
+  resumen.push([`Fecha: ${new Date().toLocaleDateString('es-MX')}`, '', `Factor desperdicio: ${acp.desperdicio}`]);
+  resumen.push([]);
+  resumen.push(['RESUMEN DE ACERO POR TIPO DE ELEMENTO']);
+  const headCal = resumenDias.length ? resumenDias : diasOrden;
+  resumen.push(['Tipo', ...headCal.map(d => d + ' (kg)'), 'Otros (kg)', 'Total s/d (kg)', 'Total c/d (kg)']);
+  Object.entries(ag.porTipo).forEach(([t, v]) => {
+    const fila = [t];
+    let otros = 0;
+    Object.entries(v.porCal).forEach(([d, kg]) => { if (!headCal.includes(d)) otros += kg; });
+    headCal.forEach(d => fila.push(round2(v.porCal[d] || 0)));
+    fila.push(round2(otros), round2(v.kgSD), round2(v.kgCD));
+    resumen.push(fila);
+  });
+  // totales por calibre
+  const totFila = ['TOTAL'];
+  let totOtros = 0;
+  Object.entries(ag.porCalibre).forEach(([d, kg]) => { if (!headCal.includes(d)) totOtros += kg; });
+  headCal.forEach(d => totFila.push(round2(ag.porCalibre[d] || 0)));
+  totFila.push(round2(totOtros), round2(ag.kgSD), round2(ag.kgCD));
+  resumen.push(totFila);
+
+  // Concreto (si la app lo cuantifica)
+  const conc = getConcretoPorFc();
+  if (Object.keys(conc).length) {
+    resumen.push([]);
+    resumen.push(['RESUMEN DE CONCRETO POR RESISTENCIA']);
+    resumen.push(["f'c (kg/cm²)", 'Volumen (m³)']);
+    Object.entries(conc).forEach(([fc, v]) => resumen.push([fc, round3(v)]));
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumen), 'RESUMEN');
+
+  // ── Una hoja por tipo de elemento ──
+  Object.keys(ag.porTipo).forEach(tipo => {
+    const aoa = [];
+    aoa.push([`GENERADOR DE ACERO — ${tipo.toUpperCase()} — ${acp.proyecto}`]);
+    aoa.push([]);
+    aoa.push(['Elemento', 'Sub-elem', 'Concepto', '∅', 'Largo', 'Gancho', 'Escuadra', 'Long total', 'Sep', 'Piezas', 'Cant. elem', 'kg/m', 'Peso s/d (kg)', 'Peso c/d (kg)']);
+    aceroElems.filter(el => el.tipo === tipo).forEach(el => {
+      const c = calcElem(el, acp);
+      c.items.forEach(it => {
+        const cd = it.pesoTotal * (acp.desperdicio || 1);
+        aoa.push([el.clave, it.subElem || '', it.concepto || '', it.dia,
+                  round3(it.largo), round2(it.gancho), round2(it.escuadra), round3(it.longTotal),
+                  it.sep || '', it.piezas, el.cant, it.kgm,
+                  round2(it.pesoTotal), round2(cd)]);
+      });
+    });
+    aoa.push([]);
+    aoa.push(['', '', '', '', '', '', '', '', '', '', '', 'TOTAL', round2(ag.porTipo[tipo].kgSD), round2(ag.porTipo[tipo].kgCD)]);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const safe = tipo.substring(0, 28).replace(/[\\/?*\[\]:]/g, '');
+    XLSX.utils.book_append_sheet(wb, ws, safe || 'tipo');
+  });
+
+  return wb;
+}
+function round2(n) { return Math.round((n || 0) * 100) / 100; }
+function round3(n) { return Math.round((n || 0) * 1000) / 1000; }
+
+function exportAceroExcel() {
+  ensureXLSX().then(() => {
+    const wb = buildAceroWorkbook();
+    const acp = getACP();
+    const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const fecha = new Date().toISOString().slice(0, 10);
+    const proy = (acp.proyecto || 'proyecto').replace(/[^\w\-]+/g, '_');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `GENERADORES-ACERO-${proy}-${fecha}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }).catch(() => alert('No se pudo cargar la librería de Excel (requiere conexión a internet).'));
+}
+
 // ─── Navegación entre módulos ──────────────────────────────────────────────────
-const VIEWS = ['zapatas', 'muros', 'confinamiento'];
+const VIEWS = ['zapatas', 'muros', 'confinamiento', 'acero'];
 function showView(v) {
   VIEWS.forEach(name => {
     const el = document.getElementById('view-' + name);
@@ -1522,6 +2143,27 @@ document.getElementById('add-conf-btn').addEventListener('click', () => {
 document.querySelectorAll('#conf-params input').forEach(el => {
   el.addEventListener('input', () => { renderConfTable(); renderConfResults(); });
 });
+
+// ── Acero ──
+document.getElementById('add-cal-btn').addEventListener('click', () => {
+  aceroCalibres.push({ dia: '#', kgm: 0, gancho: 0, escuadra: 0, resumen: false });
+  renderCalibres();
+});
+document.getElementById('add-aelem-btn').addEventListener('click', () => {
+  aceroElems.push({ clave: 'E-' + (aceroElems.length + 1), tipo: 'otro', largo: 1.00, ancho: 0.30, peralte: 0.30, altura: 0, cant: 1, armado: defaultArmado('otro') });
+  renderAceroElems(); renderAceroResults();
+});
+document.getElementById('add-arm-btn').addEventListener('click', () => {
+  if (aceroActivo == null || !aceroElems[aceroActivo]) return;
+  const el = aceroElems[aceroActivo];
+  const dia = aceroCalibres[0] ? aceroCalibres[0].dia : '#3';
+  el.armado.push({ subElem: el.tipo, concepto: 'LONGITUDINAL', dia, sep: 0, piezas: 1, largoOverride: 0 });
+  renderArmado(); renderAceroElems(); renderAceroResults();
+});
+document.querySelectorAll('#acero-params input').forEach(el => {
+  el.addEventListener('input', () => { renderAceroElems(); renderArmado(); renderAceroResults(); });
+});
+document.getElementById('btn-export-acero').addEventListener('click', exportAceroExcel);
 
 document.getElementById('add-rel-btn').addEventListener('click', () => {
   rellenos.push({ material: 'otro', desc: 'Relleno con material compactado', espesor: 0.20, esResto: false });
@@ -1574,9 +2216,10 @@ function setParamsUI(params) {
 }
 
 function saveAll() {
-  const data = { version: 3, params: getParamsObj(), zapatas, rellenos,
+  const data = { version: 4, params: getParamsObj(), zapatas, rellenos,
                  murosParams: getMP(), muros,
-                 confinaParams: getCP(), confina };
+                 confinaParams: getCP(), confina,
+                 aceroParams: getACP(), aceroCalibres, aceroElems };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1598,6 +2241,9 @@ function loadAll(file) {
       if (data.murosParams) setMurosUI(data.murosParams);
       if (data.confina)       confina = data.confina;
       if (data.confinaParams) setConfUI(data.confinaParams);
+      if (data.aceroCalibres) aceroCalibres = data.aceroCalibres;
+      if (data.aceroElems)    { aceroElems = data.aceroElems; aceroActivo = null; }
+      if (data.aceroParams)   setAceroUI(data.aceroParams);
       renderTable();
       renderRellenos();
       renderResults();
@@ -1605,6 +2251,10 @@ function loadAll(file) {
       renderMuroResults();
       renderConfTable();
       renderConfResults();
+      renderCalibres();
+      renderAceroElems();
+      renderArmado();
+      renderAceroResults();
     } catch {
       alert('El archivo no es un JSON válido.');
     }
@@ -1615,6 +2265,7 @@ function loadAll(file) {
 document.getElementById('btn-save').addEventListener('click', saveAll);
 document.getElementById('btn-save-m').addEventListener('click', saveAll);
 document.getElementById('btn-save-c').addEventListener('click', saveAll);
+document.getElementById('btn-save-a').addEventListener('click', saveAll);
 
 document.getElementById('inp-load').addEventListener('change', e => {
   loadAll(e.target.files[0]);
@@ -1628,6 +2279,10 @@ document.getElementById('inp-load-c').addEventListener('change', e => {
   loadAll(e.target.files[0]);
   e.target.value = '';
 });
+document.getElementById('inp-load-a').addEventListener('change', e => {
+  loadAll(e.target.files[0]);
+  e.target.value = '';
+});
 
 renderRellenos();
 renderTable();
@@ -1637,4 +2292,9 @@ renderMuroTable();
 renderMuroResults();
 renderConfTable();
 renderConfResults();
+renderCalibres();
+renderAceroElems();
+renderArmado();
+renderAceroResults();
+ensureXLSX().catch(() => {}); // precarga SheetJS para que la exportación sea instantánea
 </script>
