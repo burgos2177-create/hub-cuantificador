@@ -1812,51 +1812,80 @@ let aceroCalibres = [
 let aceroParams = { proyecto: 'Proyecto', desperdicio: 1.07, rec: 0.04 };
 
 // Conceptos sugeridos por tipo de elemento (catálogo abierto: el usuario puede escribir otros)
-const CONCEPTOS = {
-  zapata:      ['PARRILLA X (inf)', 'PARRILLA Y (inf)', 'PARRILLA X (sup)', 'PARRILLA Y (sup)'],
-  corrida:     ['LONGITUDINAL', 'TRANSVERSAL (bastón)', 'DALA LONGITUDINAL', 'DALA ESTRIBO'],
-  contratrabe: ['LONGITUDINAL SUP', 'LONGITUDINAL INF', 'ESTRIBO'],
-  trabe:       ['LONGITUDINAL SUP', 'LONGITUDINAL INF', 'ESTRIBO'],
-  columna:     ['VERTICAL', 'ESTRIBO'],
-  castillo:    ['VERTICAL', 'ESTRIBO'],
-  dala:        ['LONGITUDINAL', 'ESTRIBO'],
-  muro:        ['VERTICAL', 'HORIZONTAL'],
-  losa:        ['LONGITUDINAL', 'TRANSVERSAL (temp.)'],
-  otro:        ['LONGITUDINAL', 'TRANSVERSAL', 'ESTRIBO'],
+// Catálogo DEFINIDO de armado por tipo de elemento: cada opción (sub-elem + concepto) trae
+// una REGLA de largo explícita (no se infiere por texto), para asumir largos correctamente.
+//   regla: 'L'=corre el largo · 'A'=corre el ancho · 'vert'=altura+peralte (anclaje) ·
+//          'horiz'=corre el largo (reparte en altura) · 'estribo'=perímetro de la sección ·
+//          'dadoH'=altura del dado (H.dado) · 'dadoEstribo'=perímetro de la sección del dado
+const ARMADO_CATALOGO = {
+  zapata: [
+    { sub: 'zapata', con: 'PARRILLA X (inf)', regla: 'L' },
+    { sub: 'zapata', con: 'PARRILLA Y (inf)', regla: 'A' },
+    { sub: 'zapata', con: 'PARRILLA X (sup)', regla: 'L' },
+    { sub: 'zapata', con: 'PARRILLA Y (sup)', regla: 'A' },
+    { sub: 'dado',   con: 'LONGITUDINAL (vertical)', regla: 'dadoH' },
+    { sub: 'dado',   con: 'ESTRIBO', regla: 'dadoEstribo' },
+  ],
+  corrida: [
+    { sub: 'corrida', con: 'LONGITUDINAL', regla: 'L' },
+    { sub: 'corrida', con: 'TRANSVERSAL (bastón)', regla: 'A' },
+    { sub: 'dala',    con: 'DALA LONGITUDINAL', regla: 'L' },
+    { sub: 'dala',    con: 'DALA ESTRIBO', regla: 'estribo' },
+  ],
+  contratrabe: [
+    { sub: 'contratrabe', con: 'LONGITUDINAL LECHO SUP', regla: 'L' },
+    { sub: 'contratrabe', con: 'LONGITUDINAL LECHO INF', regla: 'L' },
+    { sub: 'contratrabe', con: 'BASTÓN', regla: 'L' },
+    { sub: 'contratrabe', con: 'ESTRIBO', regla: 'estribo' },
+  ],
+  trabe: [
+    { sub: 'trabe', con: 'LONGITUDINAL LECHO SUP', regla: 'L' },
+    { sub: 'trabe', con: 'LONGITUDINAL LECHO INF', regla: 'L' },
+    { sub: 'trabe', con: 'ESTRIBO', regla: 'estribo' },
+  ],
+  columna:  [ { sub: 'columna', con: 'VERTICAL', regla: 'vert' }, { sub: 'columna', con: 'ESTRIBO', regla: 'estribo' } ],
+  castillo: [ { sub: 'castillo', con: 'VERTICAL', regla: 'vert' }, { sub: 'castillo', con: 'ESTRIBO', regla: 'estribo' } ],
+  dala:     [ { sub: 'dala', con: 'LONGITUDINAL', regla: 'L' }, { sub: 'dala', con: 'ESTRIBO', regla: 'estribo' } ],
+  muro:     [ { sub: 'muro', con: 'VERTICAL', regla: 'vert' }, { sub: 'muro', con: 'HORIZONTAL', regla: 'horiz' } ],
+  losa:     [ { sub: 'losa', con: 'LONGITUDINAL', regla: 'L' }, { sub: 'losa', con: 'TRANSVERSAL (temp.)', regla: 'A' } ],
+  otro:     [ { sub: 'otro', con: 'LONGITUDINAL', regla: 'L' }, { sub: 'otro', con: 'TRANSVERSAL', regla: 'A' }, { sub: 'otro', con: 'ESTRIBO', regla: 'estribo' } ],
 };
 const TIPOS_ELEM = ['zapata', 'corrida', 'contratrabe', 'trabe', 'columna', 'castillo', 'dala', 'muro', 'losa', 'otro'];
 
-// Helper para crear un item de armado
-function armItem(subElem, concepto, dia, sep, piezas) {
-  return { subElem, concepto, dia, sep: sep || 0, piezas: piezas || 0, largoOverride: 0 };
+function catalogoDe(tipo) { return ARMADO_CATALOGO[tipo] || ARMADO_CATALOGO.otro; }
+function reglaDe(tipo, sub, con) {
+  const m = catalogoDe(tipo).find(x => x.sub === sub && x.con === con);
+  return m ? m.regla : null;
+}
+// Item de armado con su regla de largo
+function armItem(sub, con, regla, dia, sep, piezas) {
+  return { subElem: sub, concepto: con, regla, dia, sep: sep || 0, piezas: piezas || 0, largoOverride: 0 };
 }
 
-// Armado de zapata incluyendo el dado (si la zapata aislada lo tiene):
-//   dado LONGITUDINAL = vertical de largo H. Dado (cantidad de varillas)
-//   dado ESTRIBO (transversal) = por separación sobre H. Dado
+// Armado de zapata incluyendo el dado (si la zapata aislada lo tiene)
 function defaultArmadoZapata(z) {
-  const arm = [armItem('zapata','PARRILLA X (inf)','#4',0.15,0), armItem('zapata','PARRILLA Y (inf)','#4',0.15,0)];
+  const arm = [armItem('zapata','PARRILLA X (inf)','L','#4',0.15,0), armItem('zapata','PARRILLA Y (inf)','A','#4',0.15,0)];
   if (z && z.tipo === 'aislada' && z.largoDado > 0 && z.anchoDado > 0) {
-    arm.push(armItem('dado','LONGITUDINAL','#4',0,4));    // varillas verticales, largo = H. Dado
-    arm.push(armItem('dado','ESTRIBO','#2.5',0.20,0));    // estribos por separación sobre H. Dado
+    arm.push(armItem('dado','LONGITUDINAL (vertical)','dadoH','#4',0,4)); // varillas verticales, largo = H. Dado
+    arm.push(armItem('dado','ESTRIBO','dadoEstribo','#2.5',0.20,0));      // estribos por separación sobre H. Dado
   }
   return arm;
 }
 
-// Armado por defecto y razonable por tipo (configurable; el usuario lo edita libremente)
+// Armado por defecto razonable por tipo (a partir del catálogo definido)
 function defaultArmado(tipo) {
   const a = armItem;
   switch (tipo) {
-    case 'zapata':      return [a('zapata','PARRILLA X (inf)','#4',0.15,0), a('zapata','PARRILLA Y (inf)','#4',0.15,0)];
-    case 'corrida':     return [a('corrida','LONGITUDINAL','#4',0,4), a('corrida','TRANSVERSAL (bastón)','#3',0.20,0)];
-    case 'contratrabe': return [a('contratrabe','LONGITUDINAL SUP','#5',0,2), a('contratrabe','LONGITUDINAL INF','#5',0,2), a('contratrabe','ESTRIBO','#3',0.20,0)];
-    case 'trabe':       return [a('trabe','LONGITUDINAL SUP','#4',0,2), a('trabe','LONGITUDINAL INF','#4',0,2), a('trabe','ESTRIBO','#3',0.20,0)];
-    case 'columna':     return [a('columna','VERTICAL','#5',0,4), a('columna','ESTRIBO','#3',0.20,0)];
-    case 'castillo':    return [a('castillo','VERTICAL','#3',0,4), a('castillo','ESTRIBO','#2.5',0.20,0)];
-    case 'dala':        return [a('dala','LONGITUDINAL','#3',0,4), a('dala','ESTRIBO','#2.5',0.20,0)];
-    case 'muro':        return [a('muro','VERTICAL','#3',0.30,0), a('muro','HORIZONTAL','#3',0.30,0)];
-    case 'losa':        return [a('losa','LONGITUDINAL','#3',0.20,0), a('losa','TRANSVERSAL (temp.)','#3',0.25,0)];
-    default:            return [a('otro','LONGITUDINAL','#4',0,2)];
+    case 'zapata':      return [a('zapata','PARRILLA X (inf)','L','#4',0.15,0), a('zapata','PARRILLA Y (inf)','A','#4',0.15,0)];
+    case 'corrida':     return [a('corrida','LONGITUDINAL','L','#4',0,4), a('corrida','TRANSVERSAL (bastón)','A','#3',0.20,0)];
+    case 'contratrabe': return [a('contratrabe','LONGITUDINAL LECHO SUP','L','#5',0,2), a('contratrabe','LONGITUDINAL LECHO INF','L','#5',0,2), a('contratrabe','ESTRIBO','estribo','#3',0.20,0)];
+    case 'trabe':       return [a('trabe','LONGITUDINAL LECHO SUP','L','#4',0,2), a('trabe','LONGITUDINAL LECHO INF','L','#4',0,2), a('trabe','ESTRIBO','estribo','#3',0.20,0)];
+    case 'columna':     return [a('columna','VERTICAL','vert','#5',0,4), a('columna','ESTRIBO','estribo','#3',0.20,0)];
+    case 'castillo':    return [a('castillo','VERTICAL','vert','#3',0,4), a('castillo','ESTRIBO','estribo','#2.5',0.20,0)];
+    case 'dala':        return [a('dala','LONGITUDINAL','L','#3',0,4), a('dala','ESTRIBO','estribo','#2.5',0.20,0)];
+    case 'muro':        return [a('muro','VERTICAL','vert','#3',0.30,0), a('muro','HORIZONTAL','horiz','#3',0.30,0)];
+    case 'losa':        return [a('losa','LONGITUDINAL','L','#3',0.20,0), a('losa','TRANSVERSAL (temp.)','A','#3',0.25,0)];
+    default:            return [a('otro','LONGITUDINAL','L','#4',0,2)];
   }
 }
 
@@ -1920,32 +1949,35 @@ function elemGeom(el) {
 // Núcleo universal: largo según geometría + concepto; long total = largo + gancho + escuadra
 // El largo usa la DIMENSIÓN REAL del elemento (la de la matriz); el recubrimiento solo
 // descuenta en estribos (perímetro interior de la sección).
+// Regla de largo del item: usa item.regla si existe; si no, la infiere (compatibilidad datos viejos)
+function reglaDeItem(item) {
+  if (item.regla) return item.regla;
+  const esDado = /dado/i.test(item.subElem || '') || /dado/i.test(item.concepto || '');
+  const s = sentidoConcepto(item.concepto);
+  if (esDado) return (s === 'estribo' || s === 'tran') ? 'dadoEstribo' : 'dadoH';
+  return s === 'tran' ? 'A' : s === 'vert' ? 'vert' : s === 'horiz' ? 'horiz' : s === 'estribo' ? 'estribo' : 'L';
+}
+const SENTIDO_DE_REGLA = { L: 'long', A: 'tran', vert: 'vert', horiz: 'horiz', estribo: 'estribo', dadoH: 'vert', dadoEstribo: 'estribo' };
+
 function calcItem(geom, item, acp) {
   const cal = calibrePorDia(item.dia);
   const rec = acp.rec || 0;
-  const s = sentidoConcepto(item.concepto);
-  const esDado = geom.dado && (/dado/i.test(item.subElem || '') || /dado/i.test(item.concepto || ''));
+  const regla = reglaDeItem(item);
+  const s = SENTIDO_DE_REGLA[regla] || 'long';
+  const L = geom.largo || 0, A = geom.ancho || 0, H = geom.peralte || 0, Ht = geom.altura || 0;
+  const d = geom.dado;
 
   let largo, paralelo;
-  if (item.largoOverride && item.largoOverride > 0) {
-    largo = item.largoOverride;
-    paralelo = geom.dado && esDado ? geom.dado.alt : (geom.largo || 0);
-  } else if (esDado) {
-    // DADO: vertical de largo H. Dado; estribos = perímetro de la sección, repartidos sobre H. Dado
-    const d = geom.dado;
-    if (s === 'estribo' || s === 'tran') {
-      largo = Math.max(0, 2 * ((d.largo - 2 * rec) + (d.ancho - 2 * rec)));   // perímetro de la sección del dado
-    } else {
-      largo = d.alt;                                   // longitudinal/vertical del dado = H. Dado
-    }
-    paralelo = d.alt;                                  // los estribos se reparten en la altura del dado
-  } else {
-    const L = geom.largo || 0, A = geom.ancho || 0, H = geom.peralte || 0, Ht = geom.altura || 0;
-    if (s === 'long' || s === 'horiz') { largo = L; paralelo = A; }
-    else if (s === 'tran')             { largo = A; paralelo = L; }
-    else if (s === 'vert')             { largo = Math.max(0, Ht + H); paralelo = L; }
-    else                               { largo = Math.max(0, 2 * ((A - 2 * rec) + (H - 2 * rec))); paralelo = L; } // estribo
+  switch (regla) {
+    case 'A':     largo = A; paralelo = L; break;
+    case 'vert':  largo = Math.max(0, Ht + H); paralelo = L; break;
+    case 'horiz': largo = L; paralelo = Ht; break;
+    case 'estribo': largo = Math.max(0, 2 * ((A - 2 * rec) + (H - 2 * rec))); paralelo = L; break;
+    case 'dadoH':       largo = d ? d.alt : 0; paralelo = d ? d.alt : 0; break;
+    case 'dadoEstribo': largo = d ? Math.max(0, 2 * ((d.largo - 2 * rec) + (d.ancho - 2 * rec))) : 0; paralelo = d ? d.alt : 0; break;
+    default:      largo = L; paralelo = A; // 'L'
   }
+  if (item.largoOverride && item.largoOverride > 0) largo = item.largoOverride;
 
   const gancho   = cal ? cal.gancho : 0;
   const escuadra = cal ? cal.escuadra : 0;
@@ -2140,22 +2172,35 @@ function renderArmado() {
   }
   const el = aceroElems[aceroActivo];
   const geom = elemGeom(el);
+  const cat = catalogoDe(geom.tipo);
+  const subs = [...new Set(cat.map(x => x.sub))];
   label.textContent = `Armado del elemento ${el.clave} (${geom.tipo})`;
-  tip.textContent = 'La geometría se toma de la matriz. Longitudinal corre el largo; transversal el ancho; estribo = perímetro de sección; vertical = altura. En "dado": longitudinal = H. Dado (pon cantidad de varillas) y transversal = estribos (pon separación). "Sep" calcula las piezas; "Largo man." pisa el largo.';
+  tip.textContent = 'Elige sub-elem y concepto de las listas: cada combinación define el largo automáticamente. "dado/LONGITUDINAL" = H. Dado (pon cantidad de varillas); "dado/ESTRIBO" = perímetro del dado (pon separación). "Sep" calcula piezas; "Largo man." pisa el largo.';
   addBtn.style.display = '';
 
-  // Datalist de conceptos sugeridos para este tipo (catálogo abierto)
-  let dl = document.getElementById('conc-' + geom.tipo);
-  if (!dl) { dl = document.createElement('datalist'); dl.id = 'conc-' + geom.tipo; document.body.appendChild(dl); }
-  dl.innerHTML = (CONCEPTOS[geom.tipo] || []).map(x => `<option value="${x}">`).join('');
+  // Editor de dimensiones del DADO (sólo zapatas): de la matriz si está ligado; editable si es manual/clon
+  if (geom.tipo === 'zapata') {
+    const dd = geom.dado || { largo: 0, ancho: 0, alt: 0 };
+    const di = (campo, val) => geom.ligado
+      ? `<b>${(val||0).toFixed(2)}</b>`
+      : `<input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-dado="${campo}" value="${(val||0).toFixed(2)}">`;
+    const trd = document.createElement('tr');
+    trd.className = 'es-resto';
+    trd.innerHTML = `<td colspan="12" style="font-size:12px;color:var(--color-text-secondary)">
+      <b>Dado</b> — Largo ${di('largoDado', dd.largo)} m · Ancho ${di('anchoDado', dd.ancho)} m · H. dado ${di('altDado', dd.alt)} m
+      <span style="font-size:11px;color:var(--color-text-tertiary)">${geom.ligado ? '(tomado de la matriz)' : '(editable)'}${geom.dado ? '' : ' — sin dado'}</span></td>`;
+    body.appendChild(trd);
+  }
 
   const diaOpts = aceroCalibres.map(c => c.dia);
   (el.armado || []).forEach((it, j) => {
     const r = calcItem(geom, it, acp);
+    const consDe = cat.filter(x => x.sub === it.subElem).map(x => x.con);
+    if (consDe.length === 0) consDe.push(it.concepto || '');
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input class="inp-sm inp-tipo" data-arm="${j}" data-rf="subElem" value="${it.subElem||''}" list="conc-${geom.tipo}"></td>
-      <td><input class="inp-sm" style="width:150px" data-arm="${j}" data-rf="concepto" value="${it.concepto||''}" list="conc-${geom.tipo}"></td>
+      <td><select class="inp-sm inp-tipo" data-arm="${j}" data-rf="subElem">${subs.map(sb => `<option ${it.subElem===sb?'selected':''}>${sb}</option>`).join('')}</select></td>
+      <td><select class="inp-sm" style="width:185px" data-arm="${j}" data-rf="concepto">${consDe.map(cn => `<option ${it.concepto===cn?'selected':''}>${cn}</option>`).join('')}</select></td>
       <td>
         <select class="inp-sm" style="width:64px" data-arm="${j}" data-rf="dia">
           ${diaOpts.map(d => `<option value="${d}" ${it.dia===d?'selected':''}>${d}</option>`).join('')}
@@ -2177,8 +2222,25 @@ function renderArmado() {
   body.querySelectorAll('[data-arm]').forEach(elx => {
     elx.addEventListener('change', () => {
       const j = parseInt(elx.dataset.arm), f = elx.dataset.rf;
-      if (f === 'subElem' || f === 'concepto' || f === 'dia') el.armado[j][f] = elx.value;
-      else el.armado[j][f] = parseFloat(elx.value) || 0;
+      if (f === 'subElem') {
+        el.armado[j].subElem = elx.value;
+        const cons = cat.filter(x => x.sub === elx.value);
+        el.armado[j].concepto = cons[0] ? cons[0].con : '';
+        el.armado[j].regla = cons[0] ? cons[0].regla : 'L';
+      } else if (f === 'concepto') {
+        el.armado[j].concepto = elx.value;
+        el.armado[j].regla = reglaDe(geom.tipo, el.armado[j].subElem, elx.value) || 'L';
+      } else if (f === 'dia') {
+        el.armado[j].dia = elx.value;
+      } else {
+        el.armado[j][f] = parseFloat(elx.value) || 0;
+      }
+      renderArmado(); renderAceroElems(); renderAceroResults();
+    });
+  });
+  body.querySelectorAll('[data-dado]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      el[inp.dataset.dado] = parseFloat(inp.value) || 0;
       renderArmado(); renderAceroElems(); renderAceroResults();
     });
   });
@@ -2779,7 +2841,8 @@ document.getElementById('add-arm-btn').addEventListener('click', () => {
   if (aceroActivo == null || !aceroElems[aceroActivo]) return;
   const el = aceroElems[aceroActivo];
   const dia = aceroCalibres[0] ? aceroCalibres[0].dia : '#3';
-  el.armado.push({ subElem: el.tipo, concepto: 'LONGITUDINAL', dia, sep: 0, piezas: 1, largoOverride: 0 });
+  const c0 = catalogoDe(elemGeom(el).tipo)[0];
+  el.armado.push(armItem(c0.sub, c0.con, c0.regla, dia, 0, 1));
   renderArmado(); renderAceroElems(); renderAceroResults();
 });
 document.querySelectorAll('#acero-params input').forEach(el => {
