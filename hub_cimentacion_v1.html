@@ -214,6 +214,7 @@
             <th class="num">Área exc. (m²)</th>
             <th class="num">Vol. exc. nat. (m³)</th>
             <th></th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="zap-body"></tbody>
@@ -795,6 +796,7 @@ function renderTable() {
       </td>
       <td class="num computed">${c.totAreaExc.toFixed(2)}</td>
       <td class="num computed">${c.volExcNat.toFixed(3)}</td>
+      <td><button class="del-btn" data-arm-zap="${i}" title="Editar armado de acero de esta zapata">⚒</button></td>
       <td><button class="del-btn" data-del="${i}">✕</button></td>
     `;
     body.appendChild(tr);
@@ -825,6 +827,13 @@ function renderTable() {
       zapatas.splice(parseInt(btn.dataset.del), 1);
       renderTable();
       renderResults();
+    });
+  });
+
+  body.querySelectorAll('[data-arm-zap]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const z = zapatas[parseInt(btn.dataset.armZap)];
+      if (z) irAlArmado('zapatas', z.clave);
     });
   });
 }
@@ -1621,6 +1630,7 @@ let aceroParams = { proyecto: 'Proyecto', desperdicio: 1.07, rec: 0.04 };
 // Conceptos sugeridos por tipo de elemento (catálogo abierto: el usuario puede escribir otros)
 const CONCEPTOS = {
   zapata:      ['PARRILLA X (inf)', 'PARRILLA Y (inf)', 'PARRILLA X (sup)', 'PARRILLA Y (sup)'],
+  corrida:     ['LONGITUDINAL', 'TRANSVERSAL (bastón)', 'DALA LONGITUDINAL', 'DALA ESTRIBO'],
   contratrabe: ['LONGITUDINAL SUP', 'LONGITUDINAL INF', 'ESTRIBO'],
   trabe:       ['LONGITUDINAL SUP', 'LONGITUDINAL INF', 'ESTRIBO'],
   columna:     ['VERTICAL', 'ESTRIBO'],
@@ -1630,7 +1640,7 @@ const CONCEPTOS = {
   losa:        ['LONGITUDINAL', 'TRANSVERSAL (temp.)'],
   otro:        ['LONGITUDINAL', 'TRANSVERSAL', 'ESTRIBO'],
 };
-const TIPOS_ELEM = ['zapata', 'contratrabe', 'trabe', 'columna', 'castillo', 'dala', 'muro', 'losa', 'otro'];
+const TIPOS_ELEM = ['zapata', 'corrida', 'contratrabe', 'trabe', 'columna', 'castillo', 'dala', 'muro', 'losa', 'otro'];
 
 // Helper para crear un item de armado
 function armItem(subElem, concepto, dia, sep, piezas) {
@@ -1654,6 +1664,7 @@ function defaultArmado(tipo) {
   const a = armItem;
   switch (tipo) {
     case 'zapata':      return [a('zapata','PARRILLA X (inf)','#4',0.15,0), a('zapata','PARRILLA Y (inf)','#4',0.15,0)];
+    case 'corrida':     return [a('corrida','LONGITUDINAL','#4',0,4), a('corrida','TRANSVERSAL (bastón)','#3',0.20,0)];
     case 'contratrabe': return [a('contratrabe','LONGITUDINAL SUP','#5',0,2), a('contratrabe','LONGITUDINAL INF','#5',0,2), a('contratrabe','ESTRIBO','#3',0.20,0)];
     case 'trabe':       return [a('trabe','LONGITUDINAL SUP','#4',0,2), a('trabe','LONGITUDINAL INF','#4',0,2), a('trabe','ESTRIBO','#3',0.20,0)];
     case 'columna':     return [a('columna','VERTICAL','#5',0,4), a('columna','ESTRIBO','#3',0.20,0)];
@@ -1695,9 +1706,15 @@ function elemGeom(el) {
   if (el.origen === 'zapatas') {
     const z = zapatas.find(z => 'zapatas:' + z.clave === el.srcKey);
     if (z) {
-      const tipo = z.tipo === 'aislada' ? 'zapata' : 'contratrabe';
-      const dado = (z.tipo === 'aislada' && z.anchoDado > 0 && z.altDado > 0) ? { ancho: z.anchoDado, alt: z.altDado } : null;
-      return { tipo, largo: z.tipo === 'contratrabe' ? 1.0 : (z.largo || 0), ancho: z.ancho || 0, peralte: z.peralte || 0, altura: 0, cant: z.cant || 1, dado, ligado: true };
+      if (z.tipo === 'aislada') {
+        const dado = (z.anchoDado > 0 && z.altDado > 0) ? { ancho: z.anchoDado, alt: z.altDado } : null;
+        return { tipo: 'zapata', largo: z.largo || 0, ancho: z.ancho || 0, peralte: z.peralte || 0, altura: 0, cant: z.cant || 1, dado, ligado: true };
+      }
+      if (z.tipo === 'corrida') {
+        return { tipo: 'corrida', largo: z.largo || 0, ancho: z.ancho || 0, peralte: z.peralte || 0, altura: 0, cant: z.cant || 1, dado: null, ligado: true };
+      }
+      // contratrabe: en la matriz el largo unitario es 1.00 y cant = metros lineales totales
+      return { tipo: 'contratrabe', largo: z.cant || 0, ancho: z.ancho || 0, peralte: z.peralte || 0, altura: 0, cant: 1, dado: null, ligado: true };
     }
   }
   if (el.origen === 'confinamiento') {
@@ -2071,7 +2088,7 @@ function syncLinkedAcero() {
     zapatas.forEach(z => {
       const srcKey = 'zapatas:' + z.clave;
       if (!aceroElems.some(e => e.srcKey === srcKey)) {
-        const tipo = (z.tipo === 'aislada') ? 'zapata' : 'contratrabe';
+        const tipo = z.tipo === 'aislada' ? 'zapata' : z.tipo === 'corrida' ? 'corrida' : 'contratrabe';
         const armado = (tipo === 'zapata') ? defaultArmadoZapata(z) : defaultArmado(tipo);
         aceroElems.push({ clave: z.clave, tipo, srcKey, origen: 'zapatas', armado });
       }
@@ -2100,6 +2117,19 @@ function sincronizarElementos() {
   syncLinkedAcero();
   renderAceroElems(); renderArmado(); renderAceroResults();
   alert('Elementos sincronizados con la matriz de Zapatas y Confinamiento.\nLa geometría se toma en vivo de la matriz; el confinamiento es armex (prefab) y no genera varilla suelta.');
+}
+
+// Shortcut: desde una matriz, abre el armado de acero de ese elemento específico
+function irAlArmado(origen, clave) {
+  syncLinkedAcero();
+  const idx = aceroElems.findIndex(e => e.srcKey === origen + ':' + clave);
+  if (idx < 0) { alert('No se encontró el elemento ligado. Verifica la clave.'); return; }
+  aceroActivo = idx;
+  showView('acero'); // re-sincroniza y renderiza
+  aceroActivo = aceroElems.findIndex(e => e.srcKey === origen + ':' + clave);
+  renderAceroElems(); renderArmado(); renderAceroResults();
+  const lbl = document.getElementById('acero-arm-label');
+  if (lbl) lbl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // Resumen del armex (prefabricado) leído del módulo Confinamiento — NO es varilla suelta
