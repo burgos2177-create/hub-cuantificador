@@ -2661,7 +2661,12 @@ let cmTipos = [
   { tipo: 'Cepa/cim. excavación',    area: 'cepa',     ptM2: 4.25, rend: 9.5, alambre: 0.06, dias: 3,  comp: [{mat:D,frac:0.55},{mat:B,frac:0.30},{mat:P,frac:0.15}] },
 ];
 function cmTipo(nombre) { return cmTipos.find(t => t.tipo === nombre) || cmTipos[0]; }
-function cmComp(t) { return (t.comp || []).filter(c => c.mat && c.frac > 0); }
+function cmComp(t) {
+  const c = (t.comp || []).filter(c => c.mat && c.frac > 0);
+  if (c.length) return c;
+  if (t.mat) return [{ mat: t.mat, frac: 1 }];                 // compat: material único (datos viejos)
+  return [{ mat: (cmMateriales[0] && cmMateriales[0].nombre) || D, frac: 1 }];
+}
 
 // Los elementos de cimbra se generan EN VIVO desde la matriz (zapatas/confinamiento) — mismos
 // elementos/claves que en Zapatas y Acero. Se pueden agregar manuales (losas, muros) que no están
@@ -2694,7 +2699,9 @@ function cmAreaContacto(el) {
   if (el.origen === 'zapatas') { const z = zapatas.find(z => 'zapatas:' + z.clave === el.srcKey); return z ? calcZapata(z, getP()).m2Cimbra : 0; }
   if (el.origen === 'confinamiento') { const cf = confina.find(c => 'confinamiento:' + c.clave === el.srcKey); return cf ? calcConf(cf, getCP()).m2Cimbra : 0; }
   const t = cmTipo(el.tipo); const fn = CM_AREA[t.area] || (() => 0);
-  return Math.max(0, fn({ L: el.L || 0, A: el.A || 0, h: el.h || 0, H: el.H || 0, e: el.e || 0, nCaras: el.nCaras || 0 })) * (el.cant || 1);
+  let a = Math.max(0, fn({ L: el.L || 0, A: el.A || 0, h: el.h || 0, H: el.H || 0, e: el.e || 0, nCaras: el.nCaras || 0 })) * (el.cant || 1);
+  if (a === 0 && el.m2 > 0) a = el.m2 * (el.cant || 1); // compat: elementos del módulo cimbra simple anterior
+  return a;
 }
 
 const CM_DESCIMBRA_REND = 25; // m²/jornada (PDF)
@@ -3212,7 +3219,14 @@ function loadAll(file) {
       if (data.aceroElems)    { aceroElems = data.aceroElems; aceroActivo = null; }
       if (data.aceroParams)   setAceroUI(data.aceroParams);
       if (data.cmMateriales)  cmMateriales = data.cmMateriales;
-      if (data.cmTipos)       cmTipos = data.cmTipos;
+      if (data.cmTipos) data.cmTipos.forEach(s => { // fusiona (preserva composición por defecto; migra material único)
+        const d = cmTipos.find(t => t.tipo === s.tipo);
+        if (d) {
+          ['ptM2', 'rend', 'alambre', 'dias'].forEach(k => { if (s[k] != null) d[k] = s[k]; });
+          if (s.comp && s.comp.length) d.comp = s.comp;
+          else if (s.mat) d.comp = [{ mat: s.mat, frac: 1 }];
+        } else cmTipos.push(s.comp ? s : Object.assign({}, s, { comp: s.mat ? [{ mat: s.mat, frac: 1 }] : [] }));
+      });
       if (data.cmElems)       cmElems = data.cmElems;
       if (data.cmParams)      setCmUI(data.cmParams);
       renderTable();
