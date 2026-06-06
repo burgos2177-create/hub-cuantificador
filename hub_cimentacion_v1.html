@@ -663,11 +663,11 @@
 
       <div class="divider"></div>
       <div class="section-label">b) Catálogo de elementos (editable · fórmula de área del PDF §1)</div>
-      <p class="tip">PT/m² amortizado, rendimiento MO (m²/jornada), alambre recocido (kg/m²), días de descimbrado y material representativo, por tipo de elemento. Valores por defecto del PDF (puntos medios), editables.</p>
+      <p class="tip">PT/m² amortizado, rendimiento MO, alambre, días de descimbrado y la composición de madera por tipo: contacto (duela/triplay) + refuerzo (barrote/yugos) + apuntalamiento (polín/pies derechos), cada uno con su % del PT. La suma de % por tipo debería dar 1.00. Valores por defecto del PDF (puntos medios), editables.</p>
       <div class="table-wrap" style="margin-top:10px;">
         <table class="zap-table" style="min-width:1000px;">
           <thead><tr>
-            <th>Tipo de elemento</th><th>Fórmula de área</th><th class="num">PT/m²</th><th class="num">Rend MO (m²/jor)</th><th class="num">Alambre (kg/m²)</th><th class="num">Días descimbra</th><th>Material rep.</th>
+            <th>Tipo de elemento</th><th>Fórmula de área</th><th class="num">PT/m²</th><th class="num">Rend MO (m²/jor)</th><th class="num">Alambre (kg/m²)</th><th class="num">Días descimbra</th><th>Contacto (% PT)</th><th>Refuerzo (% PT)</th><th>Apuntalamiento (% PT)</th>
           </tr></thead>
           <tbody id="cm-tipos-body"></tbody>
         </table>
@@ -2644,20 +2644,24 @@ const CM_AREA_LBL = {
 };
 const CM_CIMENT = ['zap_ais', 'zap_cor', 'contra', 'cepa']; // grupo cimentación (habilitado 17)
 
+// Composición de materiales por tipo: contacto + refuerzo + apuntalamiento (% del PT, editable).
+// Materiales según el PDF §usos por elemento (zapatas: duela/barrote/polín; columnas/losas: triplay/yugos/pies derechos).
+const D = "Duela 1×4×8'", B = "Barrote 2×4×8'", P = "Polín 4×4×8'", TR = 'Triplay común CDX 16mm';
 let cmTipos = [
-  { tipo: 'Zapata aislada',          area: 'zap_ais',  ptM2: 4.25, rend: 9.5, alambre: 0.06, dias: 3,  mat: "Duela 1×4×8'" },
-  { tipo: 'Zapata corrida',          area: 'zap_cor',  ptM2: 4.25, rend: 7,   alambre: 0.06, dias: 3,  mat: "Duela 1×4×8'" },
-  { tipo: 'Contratrabe/trabe cim.',  area: 'contra',   ptM2: 4.25, rend: 9,   alambre: 0.06, dias: 3,  mat: "Duela 1×4×8'" },
-  { tipo: 'Dala/cadena',             area: 'dala',     ptM2: 7.5,  rend: 10,  alambre: 0.06, dias: 3,  mat: "Duela 1×4×8'" },
-  { tipo: 'Castillo',                area: 'castillo', ptM2: 8.0,  rend: 7,   alambre: 0.08, dias: 3,  mat: "Duela 1×4×8'" },
-  { tipo: 'Columna rectangular',     area: 'columna',  ptM2: 8.0,  rend: 7,   alambre: 0.06, dias: 3,  mat: 'Triplay común CDX 16mm' },
-  { tipo: 'Trabe peraltada',         area: 'trabe_per',ptM2: 7.5,  rend: 8,   alambre: 0.08, dias: 14, mat: 'Triplay común CDX 16mm' },
-  { tipo: 'Losa maciza',             area: 'losa',     ptM2: 5.0,  rend: 10,  alambre: 0.00, dias: 21, mat: 'Triplay común CDX 16mm' },
-  { tipo: 'Losa vigueta-bovedilla',  area: 'vb',       ptM2: 0,    rend: 0,   alambre: 0.00, dias: 10, mat: "Polín 4×4×8'" },
-  { tipo: 'Muro de concreto',        area: 'muro',     ptM2: 6.75, rend: 7,   alambre: 0.15, dias: 3,  mat: 'Triplay común CDX 16mm' },
-  { tipo: 'Cepa/cim. excavación',    area: 'cepa',     ptM2: 4.25, rend: 9.5, alambre: 0.06, dias: 3,  mat: "Duela 1×4×8'" },
+  { tipo: 'Zapata aislada',          area: 'zap_ais',  ptM2: 4.25, rend: 9.5, alambre: 0.06, dias: 3,  comp: [{mat:D,frac:0.55},{mat:B,frac:0.30},{mat:P,frac:0.15}] },
+  { tipo: 'Zapata corrida',          area: 'zap_cor',  ptM2: 4.25, rend: 7,   alambre: 0.06, dias: 3,  comp: [{mat:D,frac:0.55},{mat:B,frac:0.30},{mat:P,frac:0.15}] },
+  { tipo: 'Contratrabe/trabe cim.',  area: 'contra',   ptM2: 4.25, rend: 9,   alambre: 0.06, dias: 3,  comp: [{mat:D,frac:0.50},{mat:B,frac:0.30},{mat:P,frac:0.20}] },
+  { tipo: 'Dala/cadena',             area: 'dala',     ptM2: 7.5,  rend: 10,  alambre: 0.06, dias: 3,  comp: [{mat:D,frac:0.65},{mat:B,frac:0.35},{mat:'',frac:0}] },
+  { tipo: 'Castillo',                area: 'castillo', ptM2: 8.0,  rend: 7,   alambre: 0.08, dias: 3,  comp: [{mat:D,frac:0.65},{mat:B,frac:0.35},{mat:'',frac:0}] },
+  { tipo: 'Columna rectangular',     area: 'columna',  ptM2: 8.0,  rend: 7,   alambre: 0.06, dias: 3,  comp: [{mat:TR,frac:0.50},{mat:B,frac:0.30},{mat:P,frac:0.20}] },
+  { tipo: 'Trabe peraltada',         area: 'trabe_per',ptM2: 7.5,  rend: 8,   alambre: 0.08, dias: 14, comp: [{mat:TR,frac:0.50},{mat:B,frac:0.30},{mat:P,frac:0.20}] },
+  { tipo: 'Losa maciza',             area: 'losa',     ptM2: 5.0,  rend: 10,  alambre: 0.00, dias: 21, comp: [{mat:TR,frac:0.50},{mat:B,frac:0.25},{mat:P,frac:0.25}] },
+  { tipo: 'Losa vigueta-bovedilla',  area: 'vb',       ptM2: 0,    rend: 0,   alambre: 0.00, dias: 10, comp: [{mat:P,frac:1},{mat:'',frac:0},{mat:'',frac:0}] },
+  { tipo: 'Muro de concreto',        area: 'muro',     ptM2: 6.75, rend: 7,   alambre: 0.15, dias: 3,  comp: [{mat:TR,frac:0.60},{mat:B,frac:0.40},{mat:'',frac:0}] },
+  { tipo: 'Cepa/cim. excavación',    area: 'cepa',     ptM2: 4.25, rend: 9.5, alambre: 0.06, dias: 3,  comp: [{mat:D,frac:0.55},{mat:B,frac:0.30},{mat:P,frac:0.15}] },
 ];
 function cmTipo(nombre) { return cmTipos.find(t => t.tipo === nombre) || cmTipos[0]; }
+function cmComp(t) { return (t.comp || []).filter(c => c.mat && c.frac > 0); }
 
 // Los elementos de cimbra se generan EN VIVO desde la matriz (zapatas/confinamiento) — mismos
 // elementos/claves que en Zapatas y Acero. Se pueden agregar manuales (losas, muros) que no están
@@ -2707,7 +2711,6 @@ function getCMP() {
 
 function calcCmElem(el, prm) {
   const t = cmTipo(el.tipo);
-  const mat = cmMat(t.mat);
   const isVB = t.area === 'vb';
   const cant = el.cant || 1;
   const ligado = !!el.origen;
@@ -2719,8 +2722,16 @@ function calcCmElem(el, prm) {
   } else {
     area = cmAreaContacto(el);
   }
-  const ptAmort = area * t.ptM2 * mat.fd;       // costeo (amortizado)
-  const ptBruto = ptAmort * mat.usos;           // compra/almacén (bruto por puesta, sin amortizar)
+  // Desglose del PT por material de la composición (contacto + refuerzo + apuntalamiento)
+  const ptBase = area * t.ptM2; // PT/m² amortizado × área (antes de F.D. de cada material)
+  const mats = cmComp(t).map(c => {
+    const m = cmMat(c.mat);
+    const ptAmort = ptBase * c.frac * m.fd;
+    const ptBruto = ptAmort * m.usos;
+    return { nombre: m.nombre, mat: m, frac: c.frac, ptAmort, ptBruto };
+  });
+  const ptAmort = mats.reduce((s, x) => s + x.ptAmort, 0); // costeo
+  const ptBruto = mats.reduce((s, x) => s + x.ptBruto, 0); // compra/almacén
   const alambreKg = area * t.alambre;
   const clavoKg = area * prm.clavo * prm.clavoFd;
   const desmoldL = area * (prm.diesel ? 0.5 : prm.desmold);
@@ -2730,7 +2741,7 @@ function calcCmElem(el, prm) {
   const jornColoc = (t.rend > 0) ? area / (t.rend * fAp) : 0;
   const jornDesc = area / CM_DESCIMBRA_REND;
   const jornadas = jornHab + jornColoc + jornDesc;
-  return { t, mat, isVB, ligado, area, mlMadrina, puntales, ptAmort, ptBruto, alambreKg, clavoKg, desmoldL, jornHab, jornColoc, jornDesc, jornadas };
+  return { t, mats, isVB, ligado, area, mlMadrina, puntales, ptAmort, ptBruto, alambreKg, clavoKg, desmoldL, jornHab, jornColoc, jornDesc, jornadas };
 }
 
 // ─── Render: catálogo de materiales ─────────────────────────────────────────────
@@ -2763,20 +2774,30 @@ function renderCmTipos() {
   const body = document.getElementById('cm-tipos-body');
   body.innerHTML = '';
   const matOpts = cmMateriales.map(m => m.nombre);
+  const matSel = (i, s, sel) => `<select class="inp-sm" style="width:120px" data-cmt="${i}" data-comp="${s}" data-cf="mat"><option value="">—</option>${matOpts.map(o => `<option ${sel===o?'selected':''}>${o}</option>`).join('')}</select>`;
   cmTipos.forEach((t, i) => {
     const tr = document.createElement('tr');
     const f = (campo, val, step) => `<td class="num"><input class="inp-sm inp-dim" type="number" step="${step}" min="0" data-cmt="${i}" data-cf="${campo}" value="${val}"></td>`;
+    const comp = t.comp || [];
+    const slot = (s) => { const c = comp[s] || { mat: '', frac: 0 }; return `<td style="white-space:nowrap">${matSel(i, s, c.mat)} <input class="inp-sm inp-cant" type="number" step="0.05" min="0" max="1" data-cmt="${i}" data-comp="${s}" data-cf="frac" value="${c.frac}" title="fracción de PT"></td>`; };
     tr.innerHTML = `
       <td>${t.tipo}</td>
       <td style="font-size:11px;color:var(--color-text-tertiary)">${CM_AREA_LBL[t.area] || ''}</td>
       ${f('ptM2', t.ptM2, 0.25)}${f('rend', t.rend, 0.5)}${f('alambre', t.alambre, 0.01)}${f('dias', t.dias, 1)}
-      <td><select class="inp-sm" style="width:165px" data-cmt="${i}" data-cf="mat">${matOpts.map(o => `<option ${t.mat===o?'selected':''}>${o}</option>`).join('')}</select></td>`;
+      ${slot(0)}${slot(1)}${slot(2)}`;
     body.appendChild(tr);
   });
   body.querySelectorAll('[data-cmt]').forEach(el => el.addEventListener('change', () => {
     const i = parseInt(el.dataset.cmt), f = el.dataset.cf;
-    if (f === 'mat') cmTipos[i].mat = el.value;
-    else cmTipos[i][f] = parseFloat(el.value) || 0;
+    if (el.dataset.comp != null) {
+      const s = parseInt(el.dataset.comp);
+      if (!cmTipos[i].comp) cmTipos[i].comp = [];
+      while (cmTipos[i].comp.length <= s) cmTipos[i].comp.push({ mat: '', frac: 0 });
+      if (f === 'mat') cmTipos[i].comp[s].mat = el.value;
+      else cmTipos[i].comp[s].frac = parseFloat(el.value) || 0;
+    } else {
+      cmTipos[i][f] = parseFloat(el.value) || 0;
+    }
     renderCmElems(); renderCmResults();
   }));
 }
@@ -2830,11 +2851,11 @@ function cmAgregado() {
     alambreKg += c.alambreKg; clavoKg += c.clavoKg; desmoldL += c.desmoldL;
     jornHab += c.jornHab; jornColoc += c.jornColoc; jornDesc += c.jornDesc;
     mlMadrina += c.mlMadrina; puntales += c.puntales;
-    if (!c.isVB && c.ptAmort > 0) {
-      const k = c.mat.nombre;
-      if (!porMat[k]) porMat[k] = { mat: c.mat, ptAmort: 0, ptBruto: 0 };
-      porMat[k].ptAmort += c.ptAmort; porMat[k].ptBruto += c.ptBruto;
-    }
+    if (!c.isVB) c.mats.forEach(x => {
+      if (x.ptAmort <= 0) return;
+      if (!porMat[x.nombre]) porMat[x.nombre] = { mat: x.mat, ptAmort: 0, ptBruto: 0 };
+      porMat[x.nombre].ptAmort += x.ptAmort; porMat[x.nombre].ptBruto += x.ptBruto;
+    });
   });
   Object.values(porMat).forEach(p => {
     const ppp = ptPorPieza(p.mat) || 1;
@@ -2942,7 +2963,7 @@ function exportCimbraExcel() {
     aoa.push([]);
     aoa.push(['ELEMENTOS']);
     aoa.push(['Clave', 'Tipo', 'Área (m²)', 'PT amort.', 'PT bruto', 'Material', 'Jornadas']);
-    cmElems.forEach(el => { const c = calcCmElem(el, ag.prm); aoa.push([el.clave, el.tipo, +c.area.toFixed(2), +c.ptAmort.toFixed(2), +c.ptBruto.toFixed(2), c.mat.nombre, +c.jornadas.toFixed(2)]); });
+    cmElems.forEach(el => { const c = calcCmElem(el, ag.prm); aoa.push([el.clave, el.tipo, +c.area.toFixed(2), +c.ptAmort.toFixed(2), +c.ptBruto.toFixed(2), c.mats.map(x => x.nombre).join(' + '), +c.jornadas.toFixed(2)]); });
     aoa.push([]);
     aoa.push(['MADERA — PIEZAS COMERCIALES']);
     aoa.push(['Material', 'PT amort.', 'Pzas (costeo)', 'Pzas (compra)', 'Costo MXN']);
@@ -2996,11 +3017,11 @@ function renderBomZapatas() {
     } else {
       aceroRows = '<span style="color:var(--color-text-tertiary)">— (sin acero ligado)</span>';
     }
-    // Cimbra de madera (coeficiente del tipo aplicado al área de contacto del elemento)
-    const tC = cmTipo(tipoCimbra(z.tipo)); const mat = cmMat(tC.mat);
-    const areaCimbra = cc.m2Cimbra;
-    const ptAmort = areaCimbra * tC.ptM2 * mat.fd;
-    const pzasMadera = Math.ceil(ptAmort / (ptPorPieza(mat) || 1));
+    // Cimbra de madera (composición de materiales aplicada al área de contacto del elemento)
+    const cm = calcCmElem({ clave: z.clave, tipo: tipoCimbra(z.tipo), srcKey: 'zapatas:' + z.clave, origen: 'zapatas' }, getCMP());
+    const areaCimbra = cm.area;
+    const maderaRows = cm.mats.map(x => `<span style="display:inline-block;min-width:170px">${x.nombre}: <b>${Math.ceil(x.ptAmort / (ptPorPieza(x.mat) || 1))}</b> pzas</span>`).join(' ');
+    const pzasMadera = cm.mats.reduce((s, x) => s + Math.ceil(x.ptAmort / (ptPorPieza(x.mat) || 1)), 0);
 
     return `
       <div class="partida-group" style="margin-bottom:8px">
@@ -3016,9 +3037,9 @@ function renderBomZapatas() {
           <div class="partida-sub"></div>
         </div>
         <div class="partida-row">
-          <div class="partida-desc"><b>Cimbra de madera</b> — ${areaCimbra.toFixed(2)} m² de contacto → ${mat.nombre}</div>
+          <div class="partida-desc"><b>Cimbra de madera</b> — ${areaCimbra.toFixed(2)} m² de contacto: ${maderaRows}</div>
           <div class="partida-val">${fmtInt(pzasMadera)}</div><div class="partida-unit">pzas</div>
-          <div class="partida-sub">${fmt(ptAmort,1)} PT amortizado</div>
+          <div class="partida-sub">${fmt(cm.ptAmort,1)} PT amortizado</div>
         </div>
       </div>`;
   }).join('');
