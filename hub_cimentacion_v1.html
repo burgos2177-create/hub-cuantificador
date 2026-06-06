@@ -195,32 +195,78 @@
     </div>
 
     <div class="divider"></div>
-    <div class="section-label">Matriz de zapatas</div>
-    <p class="tip">Aislada: excava perímetro completo (L+sob × A+sob). Corrida / Contratrabe: excava en franja (L × A+sob). El dado solo aplica para aisladas.</p>
-
+    <div class="section-label">Zapatas aisladas</div>
+    <p class="tip">Excavación en perímetro completo (L+sob × A+sob). Incluye dado opcional. H. dado = Prof. desplante − Peralte zap. − Peralte dala (auto). Dala de desplante opcional.</p>
     <div class="table-wrap" style="margin-top:10px;">
       <table class="zap-table">
         <thead>
           <tr>
             <th>Clave</th>
-            <th>Tipo</th>
-            <th class="num">Largo / Long. (m)</th>
+            <th class="num">Largo (m)</th>
             <th class="num">Ancho (m)</th>
             <th class="num">Prof. desplante (m)</th>
             <th class="num">Peralte zap. (m)</th>
-            <th class="num">∅ Dado (m)</th>
-            <th class="num">H. Dado (m)</th>
-            <th class="num">Cant.</th>
+            <th class="num">Largo dado (m)</th>
+            <th class="num">Ancho dado (m)</th>
+            <th class="num">H. dado (m)</th>
+            <th class="num">Pzas.</th>
             <th class="num">Área exc. (m²)</th>
             <th class="num">Vol. exc. nat. (m³)</th>
-            <th></th>
-            <th></th>
+            <th></th><th></th>
           </tr>
         </thead>
-        <tbody id="zap-body"></tbody>
+        <tbody id="zap-ais-body"></tbody>
       </table>
     </div>
-    <button class="add-btn" id="add-btn">+ Agregar zapata</button>
+    <button class="add-btn" id="add-ais-btn">+ Agregar zapata aislada</button>
+
+    <div class="divider"></div>
+    <div class="section-label">Zapatas corridas</div>
+    <p class="tip">Excavación en franja (L × A+sob). Incluyen muro de enrase de block (altura auto = Prof. desplante − Peralte zap. − Peralte dala) y dala de desplante.</p>
+    <div class="table-wrap" style="margin-top:10px;">
+      <table class="zap-table">
+        <thead>
+          <tr>
+            <th>Clave</th>
+            <th class="num">Longitud (m)</th>
+            <th class="num">Ancho (m)</th>
+            <th class="num">Prof. desplante (m)</th>
+            <th class="num">Peralte zap. (m)</th>
+            <th class="num">Esp. muro (m)</th>
+            <th class="num">H. muro (m)</th>
+            <th class="num">Peralte dala (m)</th>
+            <th class="num">Pzas.</th>
+            <th class="num">Área exc. (m²)</th>
+            <th class="num">Vol. exc. nat. (m³)</th>
+            <th></th><th></th>
+          </tr>
+        </thead>
+        <tbody id="zap-cor-body"></tbody>
+      </table>
+    </div>
+    <button class="add-btn" id="add-cor-btn">+ Agregar zapata corrida</button>
+
+    <div class="divider"></div>
+    <div class="section-label">Contratrabes</div>
+    <p class="tip">Excavación de cepa en franja. La cantidad representa los metros lineales (ml) totales del elemento.</p>
+    <div class="table-wrap" style="margin-top:10px;">
+      <table class="zap-table">
+        <thead>
+          <tr>
+            <th>Clave</th>
+            <th class="num">Ancho (m)</th>
+            <th class="num">Prof. desplante (m)</th>
+            <th class="num">Peralte (m)</th>
+            <th class="num">ml</th>
+            <th class="num">Área exc. (m²)</th>
+            <th class="num">Vol. exc. nat. (m³)</th>
+            <th></th><th></th>
+          </tr>
+        </thead>
+        <tbody id="zap-ct-body"></tbody>
+      </table>
+    </div>
+    <button class="add-btn" id="add-ct-btn">+ Agregar contratrabe</button>
 
     <div class="divider"></div>
     <div class="section-label">Capas de relleno</div>
@@ -560,10 +606,11 @@ let rellenos = [
 ];
 
 let zapatas = [
-  { clave: 'Z1',   tipo: 'aislada', largo: 1.10, ancho: 1.10, profTotal: 1.10, peralte: 0.25, anchoDado: 0.20, altDado: 0.75, cant: 8  },
-  { clave: 'Z2',   tipo: 'aislada', largo: 1.00, ancho: 1.00, profTotal: 1.10, peralte: 0.30, anchoDado: 0.20, altDado: 0.75, cant: 2  },
-  { clave: 'Z3',   tipo: 'aislada', largo: 0.85, ancho: 0.85, profTotal: 1.10, peralte: 0.20, anchoDado: 0.20, altDado: 0.75, cant: 20 },
-  { clave: 'ZC-1', tipo: 'corrida', largo: 27.40, ancho: 0.40, profTotal: 1.10, peralte: 0.25, anchoDado: 0,   altDado: 0,   cant: 1  },
+  { clave: 'ZA-01', tipo: 'aislada', largo: 1.50, ancho: 1.50, profTotal: 1.13, peralte: 0.30, largoDado: 0.40, anchoDado: 0.40, cant: 1, dalaOn: true, dalaPeralte: 0.20, dalaAncho: 0.20 },
+  { clave: 'ZA-02', tipo: 'aislada', largo: 1.20, ancho: 1.20, profTotal: 1.13, peralte: 0.30, largoDado: 0.60, anchoDado: 0.60, cant: 1, dalaOn: true, dalaPeralte: 0.20, dalaAncho: 0.20 },
+  { clave: 'ZC-1',  tipo: 'corrida', largo: 42.61, ancho: 1.50, profTotal: 1.13, peralte: 0.25, espMuro: 0.20, dalaPeralte: 0.20, cant: 1 },
+  { clave: 'ZC-2',  tipo: 'corrida', largo: 5.65, ancho: 1.30, profTotal: 1.13, peralte: 0.25, espMuro: 0.20, dalaPeralte: 0.20, cant: 2 },
+  { clave: 'CT-1',  tipo: 'contratrabe', ancho: 0.40, peralte: 0.60, profTotal: 1.10, largo: 1.0, cant: 27 },
 ];
 
 function getP() {
@@ -604,7 +651,8 @@ function calcZapata(z, p) {
   // profDesplante = profundidad al fondo del elemento
   // profExc = profundidad real de excavación (+ mejoramiento + plantilla)
   const profDesplante = Math.max(0, z.profTotal);
-  const profExc       = profDesplante + p.espMejora + p.espPlant;
+  // La excavación llega a la profundidad de desplante; mejoramiento y plantilla quedan dentro del hueco
+  const profExc       = profDesplante;
   const volExcNat     = totAreaExc * profExc;
 
   // Estratos de excavación
@@ -636,39 +684,50 @@ function calcZapata(z, p) {
   // Volumen del elemento estructural
   const volZap = largo * z.ancho * z.peralte * z.cant;
 
-  // Dado — solo aplica para zapatas aisladas
-  const volDado = (!isLineal && z.anchoDado > 0 && z.altDado > 0)
-    ? z.anchoDado * z.anchoDado * z.altDado * z.cant
-    : 0;
+  const isAislada   = z.tipo === 'aislada';
+  const dalaPeralte = z.dalaPeralte || 0;
+  // Aisladas: dala de desplante opcional. Corridas: muro de enrase + dala por default.
+  const dalaActiva  = isAislada ? !!z.dalaOn : isCorrida;
+
+  // Dado (aislada) — rectangular; H. dado AUTO = prof. desplante − peralte − peralte dala
+  const largoDado = z.largoDado || 0, anchoDado = z.anchoDado || 0;
+  const altDado   = isAislada ? Math.max(0, profDesplante - z.peralte - (z.dalaOn ? dalaPeralte : 0)) : 0;
+  const hayDado   = isAislada && largoDado > 0 && anchoDado > 0 && altDado > 0;
+  const volDado   = hayDado ? largoDado * anchoDado * altDado * z.cant : 0;
 
   const volConcreto = volZap + volDado;
 
+  // Dala de desplante (concreto): ml = largo/longitud; ancho = dalaAncho (aislada) o esp. muro (corrida)
+  const dalaAncho = isAislada ? (z.dalaAncho || 0) : (z.espMuro || 0);
+  const mlDala    = dalaActiva ? z.largo * z.cant : 0;
+  const volDala   = dalaActiva ? dalaPeralte * dalaAncho * mlDala : 0;
+
+  // Muro de enrase de block (corrida): altura AUTO = prof. desplante − peralte − peralte dala
+  const hMuro    = isCorrida ? Math.max(0, profDesplante - z.peralte - dalaPeralte) : 0;
+  const m2Muro   = isCorrida ? hMuro * z.largo * z.cant : 0;
+  const espMuro  = z.espMuro || 0;
+  const volMuroSolido = isCorrida ? espMuro * hMuro * z.largo * z.cant : 0; // para descuento de relleno
+
   // Impermeabilización
-  const m2ImpDado = (!isLineal && z.anchoDado > 0 && z.altDado > 0)
-    ? 4 * z.anchoDado * z.altDado * z.cant
-    : 0;
+  const m2ImpDado = hayDado ? 2 * (largoDado + anchoDado) * altDado * z.cant : 0;
   let m2Impermeab;
   if (isLineal) {
-    // fondo + 2 caras longitudinales (sin topes ni dado)
     m2Impermeab = (z.ancho * largo + 2 * z.peralte * largo) * z.cant;
   } else {
-    // tapa inferior + 4 caras laterales + tapa superior (descontando huella dado) + 4 caras dado
-    const tapaSup = largo * z.ancho - z.anchoDado * z.anchoDado;
+    const tapaSup = largo * z.ancho - largoDado * anchoDado;
     m2Impermeab = (largo * z.ancho + 2 * (largo + z.ancho) * z.peralte + tapaSup) * z.cant + m2ImpDado;
   }
 
-  // Relleno compactado = volumen excavado - (mejoramiento + plantilla + concreto)
-  const volRelleno = Math.max(0, volExcNat - volMejora - volPlant - volConcreto);
+  // Relleno compactado = excavado − (mejoramiento + plantilla + concreto + dala + muro)
+  const volRelleno = Math.max(0, volExcNat - volMejora - volPlant - volConcreto - volDala - volMuroSolido);
 
   // Cimbra: caras laterales del concreto (zapata + dado)
   let m2Cimbra;
   if (isLineal) {
-    // 2 caras longitudinales de la zapata/contratrabe (topes quedan contra suelo)
     m2Cimbra = 2 * z.peralte * largo * z.cant;
   } else {
-    // 4 caras laterales zapata + 4 caras dado
     m2Cimbra = (2 * (largo + z.ancho) * z.peralte
-              + (z.anchoDado > 0 && z.altDado > 0 ? 4 * z.anchoDado * z.altDado : 0)) * z.cant;
+              + (hayDado ? 2 * (largoDado + anchoDado) * altDado : 0)) * z.cant;
   }
 
   return {
@@ -681,6 +740,9 @@ function calcZapata(z, p) {
     volMejora,
     totAreaPlant, volPlant,
     volZap, volDado, volConcreto,
+    altDado, largoDado, anchoDado,
+    dalaActiva, mlDala, volDala, dalaPeralte, dalaAncho,
+    hMuro, m2Muro, espMuro,
     m2Impermeab,
     perimExc,
     volRelleno,
@@ -763,95 +825,114 @@ function renderRellenos() {
   });
 }
 
-// ─── Render tabla de zapatas ──────────────────────────────────────────────────
-function renderTable() {
-  const p    = getP();
-  const body = document.getElementById('zap-body');
-  body.innerHTML = '';
+// ─── Render de las 3 matrices de zapatas ────────────────────────────────────────
+function inp(i, f, val, step) { return `<input class="inp-sm inp-dim" type="number" min="0" step="${step||0.05}" data-i="${i}" data-f="${f}" value="${(val||0).toFixed(2)}">`; }
+function acciones(i) {
+  return `
+    <td style="white-space:nowrap">
+      <button class="del-btn" data-up="${i}" title="Subir">▲</button>
+      <button class="del-btn" data-down="${i}" title="Bajar">▼</button>
+      <button class="del-btn" data-dup="${i}" title="Duplicar">⧉</button>
+      <button class="del-btn" data-arm-zap="${i}" title="Editar armado de acero">⚒</button>
+    </td>
+    <td><button class="del-btn" data-del="${i}">✕</button></td>`;
+}
+
+function renderZapatas() {
+  const p = getP();
+  const ais = document.getElementById('zap-ais-body');
+  const cor = document.getElementById('zap-cor-body');
+  const ct  = document.getElementById('zap-ct-body');
+  ais.innerHTML = ''; cor.innerHTML = ''; ct.innerHTML = '';
 
   zapatas.forEach((z, i) => {
     const c = calcZapata(z, p);
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input class="inp-sm inp-clave" data-i="${i}" data-f="clave" value="${z.clave}"></td>
-      <td>
-        <select class="inp-sm inp-tipo" data-i="${i}" data-f="tipo">
-          <option value="aislada"     ${z.tipo==='aislada'    ?'selected':''}>Aislada</option>
-          <option value="corrida"     ${z.tipo==='corrida'    ?'selected':''}>Corrida</option>
-          <option value="contratrabe" ${z.tipo==='contratrabe'?'selected':''}>Contratrabe</option>
-        </select>
-      </td>
-      <td class="num">${z.tipo==='contratrabe'
-          ? `<input class="inp-sm inp-dim locked" type="number" value="1.00" tabindex="-1">`
-          : `<input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="largo" value="${z.largo.toFixed(2)}">`
-        }</td>
-      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="ancho"    value="${z.ancho.toFixed(2)}"></td>
-      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="profTotal" value="${z.profTotal.toFixed(2)}"></td>
-      <td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="0.05" data-i="${i}" data-f="peralte"  value="${z.peralte.toFixed(2)}"></td>
-      <td class="num ${z.tipo==='contratrabe'?'td-locked':''}"><input class="inp-sm inp-dim ${z.tipo==='contratrabe'?'locked':''}" type="number" min="0" step="0.05" data-i="${i}" data-f="anchoDado" value="${z.anchoDado.toFixed(2)}" tabindex="${z.tipo==='contratrabe'?-1:0}"></td>
-      <td class="num ${z.tipo==='contratrabe'?'td-locked':''}"><input class="inp-sm inp-dim ${z.tipo==='contratrabe'?'locked':''}" type="number" min="0" step="0.05" data-i="${i}" data-f="altDado"   value="${z.altDado.toFixed(2)}"  tabindex="${z.tipo==='contratrabe'?-1:0}"></td>
-      <td class="num" title="${z.tipo==='contratrabe'?'metros lineales':'piezas'}">
-        <input class="inp-sm inp-cant" type="number" min="1" step="${z.tipo==='contratrabe'?1:1}" data-i="${i}" data-f="cant" value="${z.cant}">
-        ${z.tipo==='contratrabe'?'<span style="font-size:10px;color:var(--color-text-tertiary)">ml</span>':''}
-      </td>
-      <td class="num computed">${c.totAreaExc.toFixed(2)}</td>
-      <td class="num computed">${c.volExcNat.toFixed(3)}</td>
-      <td><button class="del-btn" data-arm-zap="${i}" title="Editar armado de acero de esta zapata">⚒</button></td>
-      <td><button class="del-btn" data-del="${i}">✕</button></td>
-    `;
-    body.appendChild(tr);
+
+    if (z.tipo === 'aislada') {
+      tr.innerHTML = `
+        <td><input class="inp-sm inp-clave" data-i="${i}" data-f="clave" value="${z.clave}"></td>
+        <td class="num">${inp(i,'largo',z.largo)}</td>
+        <td class="num">${inp(i,'ancho',z.ancho)}</td>
+        <td class="num">${inp(i,'profTotal',z.profTotal)}</td>
+        <td class="num">${inp(i,'peralte',z.peralte)}</td>
+        <td class="num">${inp(i,'largoDado',z.largoDado)}</td>
+        <td class="num">${inp(i,'anchoDado',z.anchoDado)}</td>
+        <td class="num td-locked" title="auto = prof. desplante − peralte − peralte dala">${c.altDado.toFixed(2)} <span style="font-size:9px;color:var(--color-text-tertiary)">auto</span></td>
+        <td class="num"><input class="inp-sm inp-cant" type="number" min="1" step="1" data-i="${i}" data-f="cant" value="${z.cant}"></td>
+        <td class="num computed">${c.totAreaExc.toFixed(2)}</td>
+        <td class="num computed">${c.volExcNat.toFixed(3)}</td>
+        ${acciones(i)}`;
+      ais.appendChild(tr);
+      // sub-fila: dala de desplante
+      const trd = document.createElement('tr');
+      trd.className = 'es-resto';
+      trd.innerHTML = `
+        <td colspan="2"><label style="font-size:12px;display:flex;gap:6px;align-items:center"><input type="checkbox" data-i="${i}" data-f="dalaOn" ${z.dalaOn?'checked':''}> Dala de desplante</label></td>
+        <td colspan="2" style="font-size:11px;color:var(--color-text-secondary)">Peralte / Ancho (m)</td>
+        <td class="num">${inp(i,'dalaPeralte',z.dalaPeralte)}</td>
+        <td class="num">${inp(i,'dalaAncho',z.dalaAncho)}</td>
+        <td colspan="7" style="font-size:11px;color:var(--color-text-tertiary)">${z.dalaOn ? `→ ${fmt(c.mlDala,2)} ml · ${fmt(c.volDala,3)} m³ concreto` : '(desactivada)'}</td>`;
+      ais.appendChild(trd);
+
+    } else if (z.tipo === 'corrida') {
+      tr.innerHTML = `
+        <td><input class="inp-sm inp-clave" data-i="${i}" data-f="clave" value="${z.clave}"></td>
+        <td class="num">${inp(i,'largo',z.largo)}</td>
+        <td class="num">${inp(i,'ancho',z.ancho)}</td>
+        <td class="num">${inp(i,'profTotal',z.profTotal)}</td>
+        <td class="num">${inp(i,'peralte',z.peralte)}</td>
+        <td class="num">${inp(i,'espMuro',z.espMuro)}</td>
+        <td class="num td-locked" title="auto = prof. desplante − peralte − peralte dala">${c.hMuro.toFixed(2)} <span style="font-size:9px;color:var(--color-text-tertiary)">auto</span></td>
+        <td class="num">${inp(i,'dalaPeralte',z.dalaPeralte)}</td>
+        <td class="num"><input class="inp-sm inp-cant" type="number" min="1" step="1" data-i="${i}" data-f="cant" value="${z.cant}"></td>
+        <td class="num computed">${c.totAreaExc.toFixed(2)}</td>
+        <td class="num computed">${c.volExcNat.toFixed(3)}</td>
+        ${acciones(i)}`;
+      cor.appendChild(tr);
+
+    } else { // contratrabe
+      tr.innerHTML = `
+        <td><input class="inp-sm inp-clave" data-i="${i}" data-f="clave" value="${z.clave}"></td>
+        <td class="num">${inp(i,'ancho',z.ancho)}</td>
+        <td class="num">${inp(i,'profTotal',z.profTotal)}</td>
+        <td class="num">${inp(i,'peralte',z.peralte)}</td>
+        <td class="num"><input class="inp-sm inp-cant" type="number" min="1" step="1" data-i="${i}" data-f="cant" value="${z.cant}" title="metros lineales"></td>
+        <td class="num computed">${c.totAreaExc.toFixed(2)}</td>
+        <td class="num computed">${c.volExcNat.toFixed(3)}</td>
+        ${acciones(i)}`;
+      ct.appendChild(tr);
+    }
   });
 
-  body.querySelectorAll('input,select').forEach(el => {
-    el.addEventListener('input', () => {
-      const i = parseInt(el.dataset.i);
-      const f = el.dataset.f;
-      if (f === 'tipo') {
-        zapatas[i][f] = el.value;
-        // Tipo cambia la estructura de la fila (celdas bloqueadas, etc.) → re-render completo
-        renderTable();
-      } else if (f === 'clave') {
-        zapatas[i][f] = el.value;
-        return; // no afecta cálculos ni partidas → no tocar el DOM
-      } else {
-        zapatas[i][f] = parseFloat(el.value) || 0;
-        // Solo actualizar celdas calculadas de esta fila, sin destruir el DOM
-        updateRowComputed(i);
-      }
-      renderResults();
+  // listeners (en 'change' para no perder foco y refrescar campos auto)
+  document.querySelectorAll('#zap-ais-body [data-i], #zap-cor-body [data-i], #zap-ct-body [data-i]').forEach(el => {
+    el.addEventListener('change', () => {
+      const i = parseInt(el.dataset.i), f = el.dataset.f;
+      if (f === 'clave') { zapatas[i].clave = el.value; return; }
+      if (f === 'dalaOn') zapatas[i].dalaOn = el.checked;
+      else zapatas[i][f] = parseFloat(el.value) || 0;
+      renderZapatas(); renderResults();
     });
   });
-
-  body.querySelectorAll('[data-del]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      zapatas.splice(parseInt(btn.dataset.del), 1);
-      renderTable();
-      renderResults();
-    });
+  document.querySelectorAll('#zap-ais-body [data-del], #zap-cor-body [data-del], #zap-ct-body [data-del]').forEach(btn => {
+    btn.addEventListener('click', () => { zapatas.splice(parseInt(btn.dataset.del), 1); renderZapatas(); renderResults(); });
   });
-
-  body.querySelectorAll('[data-arm-zap]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const z = zapatas[parseInt(btn.dataset.armZap)];
-      if (z) irAlArmado('zapatas', z.clave);
-    });
+  document.querySelectorAll('[data-arm-zap]').forEach(btn => {
+    btn.addEventListener('click', () => { const z = zapatas[parseInt(btn.dataset.armZap)]; if (z) irAlArmado('zapatas', z.clave); });
+  });
+  document.querySelectorAll('[data-dup]').forEach(btn => {
+    btn.addEventListener('click', () => { const i = parseInt(btn.dataset.dup); const copia = JSON.parse(JSON.stringify(zapatas[i])); copia.clave += ' (copia)'; zapatas.splice(i + 1, 0, copia); renderZapatas(); renderResults(); });
+  });
+  document.querySelectorAll('[data-up]').forEach(btn => {
+    btn.addEventListener('click', () => { const i = parseInt(btn.dataset.up); if (i > 0) { [zapatas[i-1], zapatas[i]] = [zapatas[i], zapatas[i-1]]; renderZapatas(); renderResults(); } });
+  });
+  document.querySelectorAll('[data-down]').forEach(btn => {
+    btn.addEventListener('click', () => { const i = parseInt(btn.dataset.down); if (i < zapatas.length - 1) { [zapatas[i+1], zapatas[i]] = [zapatas[i], zapatas[i+1]]; renderZapatas(); renderResults(); } });
   });
 }
-
-// ─── Actualizar celdas calculadas sin re-renderizar la tabla ─────────────────
-function updateRowComputed(i) {
-  const p = getP();
-  const c = calcZapata(zapatas[i], p);
-  const row = document.querySelectorAll('#zap-body tr')[i];
-  if (!row) return;
-  const computed = row.querySelectorAll('td.computed');
-  if (computed[0]) computed[0].textContent = c.totAreaExc.toFixed(2);
-  if (computed[1]) computed[1].textContent = c.volExcNat.toFixed(3);
-}
-
-function updateAllRowsComputed() {
-  zapatas.forEach((_, i) => updateRowComputed(i));
-}
+const renderTable = renderZapatas; // alias para llamadas existentes
+function updateAllRowsComputed() { renderZapatas(); }
 
 // ─── Render resultados ────────────────────────────────────────────────────────
 function fmt(n, d = 3) { return n.toFixed(d); }
@@ -871,6 +952,7 @@ function renderResults() {
     totAreaPlant: 0, volPlant: 0,
     volZap: 0, volDado: 0, volConcreto: 0,
     m2Impermeab: 0, volRelleno: 0, m2Cimbra: 0,
+    volDala: 0, mlDala: 0, m2Muro: 0,
   };
 
   // Por clave (para partida de piezas) y por capa de relleno
@@ -899,6 +981,9 @@ function renderResults() {
     tot.m2Impermeab  += c.m2Impermeab;
     tot.volRelleno   += c.volRelleno;
     tot.m2Cimbra     += c.m2Cimbra;
+    tot.volDala      += c.volDala;
+    tot.mlDala       += c.mlDala;
+    tot.m2Muro       += c.m2Muro;
 
     // Capas de relleno
     const capas = calcRellenoLayers(c.volRelleno, c.totAreaExc);
@@ -1066,6 +1151,22 @@ function renderResults() {
         <div class="partida-sub"></div>
       </div>
       ${elementoRows}
+    </div>
+
+    <div class="partida-group">
+      <div class="partida-group-title">Dala de desplante y muro de enrase</div>
+      <div class="partida-row">
+        <div class="partida-desc">Dala de desplante de concreto armado (cadena de desplante en zapatas aisladas y corridas)</div>
+        <div class="partida-val ${tot.volDala===0?'zero':''}">${fmt(tot.volDala, 3)}</div>
+        <div class="partida-unit">m³</div>
+        <div class="partida-sub">${fmt(tot.mlDala, 2)} ml de dala</div>
+      </div>
+      <div class="partida-row highlight">
+        <div class="partida-desc">Muro de enrase de block en zapatas corridas (de la zapata al nivel de desplante)</div>
+        <div class="partida-val ${tot.m2Muro===0?'zero':''}">${fmt(tot.m2Muro, 2)}</div>
+        <div class="partida-unit">m²</div>
+        <div class="partida-sub">${fmtInt(tot.m2Muro * 12.5)} pzas block (~12.5/m²)</div>
+      </div>
     </div>
   `;
 }
@@ -1652,7 +1753,7 @@ function armItem(subElem, concepto, dia, sep, piezas) {
 //   dado ESTRIBO (transversal) = por separación sobre H. Dado
 function defaultArmadoZapata(z) {
   const arm = [armItem('zapata','PARRILLA X (inf)','#4',0.15,0), armItem('zapata','PARRILLA Y (inf)','#4',0.15,0)];
-  if (z && z.tipo === 'aislada' && z.anchoDado > 0 && z.altDado > 0) {
+  if (z && z.tipo === 'aislada' && z.largoDado > 0 && z.anchoDado > 0) {
     arm.push(armItem('dado','LONGITUDINAL','#4',0,4));    // varillas verticales, largo = H. Dado
     arm.push(armItem('dado','ESTRIBO','#2.5',0.20,0));    // estribos por separación sobre H. Dado
   }
@@ -1707,7 +1808,8 @@ function elemGeom(el) {
     const z = zapatas.find(z => 'zapatas:' + z.clave === el.srcKey);
     if (z) {
       if (z.tipo === 'aislada') {
-        const dado = (z.anchoDado > 0 && z.altDado > 0) ? { ancho: z.anchoDado, alt: z.altDado } : null;
+        const altDado = Math.max(0, (z.profTotal || 0) - (z.peralte || 0) - (z.dalaOn ? (z.dalaPeralte || 0) : 0));
+        const dado = (z.largoDado > 0 && z.anchoDado > 0 && altDado > 0) ? { largo: z.largoDado, ancho: z.anchoDado, alt: altDado } : null;
         return { tipo: 'zapata', largo: z.largo || 0, ancho: z.ancho || 0, peralte: z.peralte || 0, altura: 0, cant: z.cant || 1, dado, ligado: true };
       }
       if (z.tipo === 'corrida') {
@@ -1745,7 +1847,7 @@ function calcItem(geom, item, acp) {
     // DADO: vertical de largo H. Dado; estribos = perímetro de la sección, repartidos sobre H. Dado
     const d = geom.dado;
     if (s === 'estribo' || s === 'tran') {
-      largo = Math.max(0, 4 * (d.ancho - 2 * rec));   // perímetro de la sección cuadrada del dado
+      largo = Math.max(0, 2 * ((d.largo - 2 * rec) + (d.ancho - 2 * rec)));   // perímetro de la sección del dado
     } else {
       largo = d.alt;                                   // longitudinal/vertical del dado = H. Dado
     }
@@ -2149,9 +2251,9 @@ function getConcretoPorFc() {
   const out = {};
   try {
     const p = getP();
-    let volZap = 0, volDado = 0, volPlant = 0;
-    zapatas.forEach(z => { const c = calcZapata(z, p); volZap += c.volZap; volDado += c.volDado; volPlant += c.volPlant; });
-    const cz = volZap + volDado;
+    let volZap = 0, volDado = 0, volPlant = 0, volDala = 0;
+    zapatas.forEach(z => { const c = calcZapata(z, p); volZap += c.volZap; volDado += c.volDado; volPlant += c.volPlant; volDala += c.volDala; });
+    const cz = volZap + volDado + volDala;
     if (cz > 0) out["250"] = (out["250"] || 0) + cz;
     if (volPlant > 0) out["100"] = (out["100"] || 0) + volPlant;
   } catch (e) {}
@@ -2340,21 +2442,21 @@ document.getElementById('add-rel-btn').addEventListener('click', () => {
   renderResults();
 });
 
-document.getElementById('add-btn').addEventListener('click', () => {
-  const last = zapatas[zapatas.length - 1];
-  zapatas.push({
-    clave: 'Z' + (zapatas.length + 1),
-    tipo: 'aislada',
-    largo: last ? last.largo : 1.00,
-    ancho: last ? last.ancho : 1.00,
-    profTotal: last ? last.profTotal : 1.10,
-    peralte: 0.25,
-    anchoDado: 0.20,
-    altDado: 0.75,
-    cant: 1,
-  });
-  renderTable();
-  renderResults();
+function nextClave(pref) {
+  let n = 1; while (zapatas.some(z => z.clave === pref + n)) n++;
+  return pref + n;
+}
+document.getElementById('add-ais-btn').addEventListener('click', () => {
+  zapatas.push({ clave: nextClave('ZA-'), tipo: 'aislada', largo: 1.50, ancho: 1.50, profTotal: 1.13, peralte: 0.30, largoDado: 0.40, anchoDado: 0.40, cant: 1, dalaOn: true, dalaPeralte: 0.20, dalaAncho: 0.20 });
+  renderZapatas(); renderResults();
+});
+document.getElementById('add-cor-btn').addEventListener('click', () => {
+  zapatas.push({ clave: nextClave('ZC-'), tipo: 'corrida', largo: 5.00, ancho: 1.30, profTotal: 1.13, peralte: 0.25, espMuro: 0.20, dalaPeralte: 0.20, cant: 1 });
+  renderZapatas(); renderResults();
+});
+document.getElementById('add-ct-btn').addEventListener('click', () => {
+  zapatas.push({ clave: nextClave('CT-'), tipo: 'contratrabe', ancho: 0.40, peralte: 0.60, profTotal: 1.10, largo: 1.0, cant: 10 });
+  renderZapatas(); renderResults();
 });
 
 document.querySelectorAll('#params-panel input').forEach(el => {
