@@ -1912,8 +1912,9 @@ function elemGeom(el) {
       return { tipo: esVert ? 'castillo' : 'dala', largo: esVert ? 0 : (cf.longitud || 0), ancho: cf.a || 0, peralte: cf.b || 0, altura: esVert ? (cf.longitud || 0) : 0, cant: cf.cant || 1, ligado: true };
     }
   }
-  // Elemento manual: geometría propia
-  return { tipo: el.tipo, largo: el.largo || 0, ancho: el.ancho || 0, peralte: el.peralte || 0, altura: el.altura || 0, cant: el.cant || 1, ligado: false };
+  // Elemento manual: geometría propia (incluye dado si se guardaron sus dimensiones)
+  const dado = (el.largoDado > 0 && el.anchoDado > 0 && el.altDado > 0) ? { largo: el.largoDado, ancho: el.anchoDado, alt: el.altDado } : null;
+  return { tipo: el.tipo, largo: el.largo || 0, ancho: el.ancho || 0, peralte: el.peralte || 0, altura: el.altura || 0, cant: el.cant || 1, dado, ligado: false };
 }
 
 // Núcleo universal: largo según geometría + concepto; long total = largo + gancho + escuadra
@@ -2063,9 +2064,10 @@ function renderAceroElems() {
       ${ligado ? `<td class="num td-locked">${g.cant}</td>` : `<td class="num"><input class="inp-sm inp-cant" type="number" step="1" min="1" data-ae="${i}" data-af="cant" value="${el.cant}"></td>`}
       <td class="num computed">${esPrefab ? '—' : fmt(c.kgSD,2)}</td>
       <td class="num computed">${esPrefab ? '—' : fmt(c.kgCD,2)}</td>
-      <td>${esPrefab
+      <td style="white-space:nowrap">${esPrefab
             ? `<span style="font-size:11px;color:var(--color-text-tertiary)" title="El acero de este elemento es armex prefabricado; se cuantifica en el módulo Confinamiento">armex (prefab)</span>`
-            : `<button class="add-btn" style="margin:0;padding:3px 9px" data-armar="${i}">Armar ✎</button>`}</td>
+            : `<button class="add-btn" style="margin:0;padding:3px 9px" data-armar="${i}">Armar ✎</button>`}
+          <button class="del-btn" data-aclon="${i}" title="Clonar como elemento manual editable">⧉</button></td>
       <td>${ligado ? '' : `<button class="del-btn" data-aedel="${i}">✕</button>`}</td>
     `;
     body.appendChild(tr);
@@ -2099,6 +2101,26 @@ function renderAceroElems() {
       renderAceroElems(); renderArmado(); renderAceroResults();
     });
   });
+  body.querySelectorAll('[data-aclon]').forEach(btn => {
+    btn.addEventListener('click', () => cloneAceroElem(parseInt(btn.dataset.aclon)));
+  });
+}
+
+// Clona un elemento (ligado o manual) como elemento MANUAL editable, con geometría y armado copiados
+function cloneAceroElem(i) {
+  const src = aceroElems[i];
+  if (!src) return;
+  const g = elemGeom(src);
+  const copia = {
+    clave: (src.clave || 'E') + ' (copia)',
+    tipo: g.tipo,
+    largo: g.largo, ancho: g.ancho, peralte: g.peralte, altura: g.altura, cant: g.cant,
+    armado: JSON.parse(JSON.stringify(src.armado && src.armado.length ? src.armado : defaultArmado(g.tipo))),
+  };
+  if (g.dado) { copia.largoDado = g.dado.largo; copia.anchoDado = g.dado.ancho; copia.altDado = g.dado.alt; }
+  aceroElems.splice(i + 1, 0, copia);
+  aceroActivo = i + 1;
+  renderAceroElems(); renderArmado(); renderAceroResults();
 }
 
 // ─── Render: armado del elemento activo ────────────────────────────────────────
