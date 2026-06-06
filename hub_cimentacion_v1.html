@@ -153,6 +153,7 @@
         📂 Cargar cuantificación
         <input type="file" id="inp-load" accept=".json" style="display:none;">
       </label>
+      <button class="tool-btn" id="btn-bom-zap">📋 Resumen / BOM por elemento</button>
     </div>
 
     <!-- Parámetros globales -->
@@ -295,6 +296,10 @@
     <div class="divider"></div>
     <div class="section-label">Partidas de obra</div>
     <div class="partidas" id="partidas"></div>
+
+    <div class="divider"></div>
+    <div class="section-label" id="bom-label" style="display:none;">Resumen / BOM por elemento (concreto · acero · cimbra)</div>
+    <div class="partidas" id="bom-zapatas"></div>
     </div><!-- /view-zapatas -->
 
     <div id="view-muros" style="display:none;">
@@ -2654,11 +2659,39 @@ let cmTipos = [
 ];
 function cmTipo(nombre) { return cmTipos.find(t => t.tipo === nombre) || cmTipos[0]; }
 
-let cmElems = [
-  { clave: 'Z-1', tipo: 'Zapata aislada',      L: 1.50, A: 1.50, h: 0.30, H: 0,   e: 0,    nCaras: 4, cant: 4, aparente: false },
-  { clave: 'K-1', tipo: 'Columna rectangular', L: 0,    A: 0.40, h: 0.40, H: 3.0, e: 0,    nCaras: 4, cant: 6, aparente: false },
-  { clave: 'L-1', tipo: 'Losa maciza',         L: 5.0,  A: 4.0,  h: 0,    H: 0,   e: 0.12, nCaras: 0, cant: 1, aparente: false },
-];
+// Los elementos de cimbra se generan EN VIVO desde la matriz (zapatas/confinamiento) — mismos
+// elementos/claves que en Zapatas y Acero. Se pueden agregar manuales (losas, muros) que no están
+// en ninguna matriz. El área de contacto de los ligados se lee del módulo origen.
+let cmElems = [];
+
+// Mapea el tipo de la matriz al tipo de cimbra
+function cmTipoDeZapata(z) { return z.tipo === 'aislada' ? 'Zapata aislada' : z.tipo === 'corrida' ? 'Zapata corrida' : 'Contratrabe/trabe cim.'; }
+function cmTipoDeConf(cf) { return cf.tipo === 'castillo' ? 'Castillo' : 'Dala/cadena'; }
+
+// Sincroniza los elementos de cimbra con la matriz (crea faltantes, elimina huérfanos)
+function syncLinkedCimbra() {
+  try { zapatas.forEach(z => { const k = 'zapatas:' + z.clave; if (!cmElems.some(e => e.srcKey === k)) cmElems.push({ clave: z.clave, tipo: cmTipoDeZapata(z), srcKey: k, origen: 'zapatas', aparente: false }); }); } catch (e) {}
+  try { confina.forEach(cf => { const k = 'confinamiento:' + cf.clave; if (!cmElems.some(e => e.srcKey === k)) cmElems.push({ clave: cf.clave, tipo: cmTipoDeConf(cf), srcKey: k, origen: 'confinamiento', aparente: false }); }); } catch (e) {}
+  cmElems = cmElems.filter(e => {
+    if (!e.origen) return true;
+    if (e.origen === 'zapatas') return zapatas.some(z => 'zapatas:' + z.clave === e.srcKey);
+    if (e.origen === 'confinamiento') return confina.some(c => 'confinamiento:' + c.clave === e.srcKey);
+    return true;
+  });
+}
+
+// Geometría/área de contacto de un elemento de cimbra (ligado = en vivo del módulo origen)
+function cmDims(el) {
+  if (el.origen === 'zapatas') { const z = zapatas.find(z => 'zapatas:' + z.clave === el.srcKey); if (z) return { L: z.largo || 0, A: z.ancho || 0, h: z.peralte || 0, H: 0, e: 0, cant: z.cant || 1, ligado: true }; }
+  if (el.origen === 'confinamiento') { const cf = confina.find(c => 'confinamiento:' + c.clave === el.srcKey); if (cf) { const v = cf.tipo === 'castillo'; return { L: v ? 0 : (cf.longitud || 0), A: cf.a || 0, h: cf.b || 0, H: v ? (cf.longitud || 0) : 0, e: 0, cant: cf.cant || 1, ligado: true }; } }
+  return { L: el.L || 0, A: el.A || 0, h: el.h || 0, H: el.H || 0, e: el.e || 0, cant: el.cant || 1, nCaras: el.nCaras || 0, ligado: false };
+}
+function cmAreaContacto(el) {
+  if (el.origen === 'zapatas') { const z = zapatas.find(z => 'zapatas:' + z.clave === el.srcKey); return z ? calcZapata(z, getP()).m2Cimbra : 0; }
+  if (el.origen === 'confinamiento') { const cf = confina.find(c => 'confinamiento:' + c.clave === el.srcKey); return cf ? calcConf(cf, getCP()).m2Cimbra : 0; }
+  const t = cmTipo(el.tipo); const fn = CM_AREA[t.area] || (() => 0);
+  return Math.max(0, fn({ L: el.L || 0, A: el.A || 0, h: el.h || 0, H: el.H || 0, e: el.e || 0, nCaras: el.nCaras || 0 })) * (el.cant || 1);
+}
 
 const CM_DESCIMBRA_REND = 25; // m²/jornada (PDF)
 function getCMP() {
@@ -2677,14 +2710,14 @@ function calcCmElem(el, prm) {
   const mat = cmMat(t.mat);
   const isVB = t.area === 'vb';
   const cant = el.cant || 1;
+  const ligado = !!el.origen;
   let area = 0, mlMadrina = 0, puntales = 0;
   if (isVB) {
     const nLineas = Math.ceil((el.A || 0) / prm.sepMadrina) + 1;
     mlMadrina = nLineas * (el.L || 0) * cant;
     puntales  = (Math.ceil((el.L || 0) / prm.sepPuntal) + 1) * nLineas * cant;
   } else {
-    const fn = CM_AREA[t.area] || (() => 0);
-    area = Math.max(0, fn({ L: el.L || 0, A: el.A || 0, h: el.h || 0, H: el.H || 0, e: el.e || 0, nCaras: el.nCaras || 0 })) * cant;
+    area = cmAreaContacto(el);
   }
   const ptAmort = area * t.ptM2 * mat.fd;       // costeo (amortizado)
   const ptBruto = ptAmort * mat.usos;           // compra/almacén (bruto por puesta, sin amortizar)
@@ -2697,7 +2730,7 @@ function calcCmElem(el, prm) {
   const jornColoc = (t.rend > 0) ? area / (t.rend * fAp) : 0;
   const jornDesc = area / CM_DESCIMBRA_REND;
   const jornadas = jornHab + jornColoc + jornDesc;
-  return { t, mat, isVB, area, mlMadrina, puntales, ptAmort, ptBruto, alambreKg, clavoKg, desmoldL, jornHab, jornColoc, jornDesc, jornadas };
+  return { t, mat, isVB, ligado, area, mlMadrina, puntales, ptAmort, ptBruto, alambreKg, clavoKg, desmoldL, jornHab, jornColoc, jornDesc, jornadas };
 }
 
 // ─── Render: catálogo de materiales ─────────────────────────────────────────────
@@ -2756,19 +2789,24 @@ function renderCmElems() {
   const tipoOpts = cmTipos.map(t => t.tipo);
   cmElems.forEach((el, i) => {
     const c = calcCmElem(el, prm);
+    const g = cmDims(el);
+    const lig = g.ligado;
     const tr = document.createElement('tr');
-    const dim = (campo) => `<td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-cme="${i}" data-cf="${campo}" value="${(el[campo]||0).toFixed(2)}"></td>`;
+    const origenTag = el.origen ? `<div style="font-size:9px;color:var(--color-text-tertiary);margin-top:2px">↗ ${el.origen}</div>` : '';
+    const dimL = (campo, val) => lig
+      ? `<td class="num td-locked">${(val||0).toFixed(2)}</td>`
+      : `<td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-cme="${i}" data-cf="${campo}" value="${(el[campo]||0).toFixed(2)}"></td>`;
     tr.innerHTML = `
-      <td><input class="inp-sm inp-clave" data-cme="${i}" data-cf="clave" value="${el.clave}"></td>
-      <td><select class="inp-sm inp-tipo" style="width:165px" data-cme="${i}" data-cf="tipo">${tipoOpts.map(o => `<option ${el.tipo===o?'selected':''}>${o}</option>`).join('')}</select></td>
-      ${dim('L')}${dim('A')}${dim('h')}${dim('H')}${dim('e')}
-      <td class="num"><input class="inp-sm inp-cant" type="number" step="1" min="0" data-cme="${i}" data-cf="nCaras" value="${el.nCaras||0}"></td>
-      <td class="num"><input class="inp-sm inp-cant" type="number" step="1" min="1" data-cme="${i}" data-cf="cant" value="${el.cant}"></td>
+      <td>${lig ? `<span style="font-size:12.5px;font-weight:500">${el.clave}</span>` : `<input class="inp-sm inp-clave" data-cme="${i}" data-cf="clave" value="${el.clave}">`}${origenTag}</td>
+      <td>${lig ? `<span style="font-size:12.5px">${el.tipo}</span>` : `<select class="inp-sm inp-tipo" style="width:165px" data-cme="${i}" data-cf="tipo">${tipoOpts.map(o => `<option ${el.tipo===o?'selected':''}>${o}</option>`).join('')}</select>`}</td>
+      ${dimL('L', g.L)}${dimL('A', g.A)}${dimL('h', g.h)}${dimL('H', g.H)}${dimL('e', g.e)}
+      <td class="num">${lig ? `<span class="td-locked">—</span>` : `<input class="inp-sm inp-cant" type="number" step="1" min="0" data-cme="${i}" data-cf="nCaras" value="${el.nCaras||0}">`}</td>
+      <td class="num">${lig ? `<span class="td-locked">${g.cant}</span>` : `<input class="inp-sm inp-cant" type="number" step="1" min="1" data-cme="${i}" data-cf="cant" value="${el.cant}">`}</td>
       <td class="ctr"><input type="checkbox" data-cme="${i}" data-cf="aparente" ${el.aparente?'checked':''}></td>
       <td class="num computed">${c.isVB ? '—' : c.area.toFixed(2)}</td>
       <td class="num computed">${c.isVB ? '—' : c.ptAmort.toFixed(2)}</td>
       <td class="num computed">${c.isVB ? '—' : c.ptBruto.toFixed(2)}</td>
-      <td><button class="del-btn" data-cmedel="${i}">✕</button></td>`;
+      <td>${lig ? '' : `<button class="del-btn" data-cmedel="${i}">✕</button>`}</td>`;
     body.appendChild(tr);
   });
   body.querySelectorAll('[data-cme]').forEach(el => el.addEventListener('change', () => {
@@ -2931,7 +2969,64 @@ function exportCimbraExcel() {
   }).catch(() => alert('No se pudo cargar la librería de Excel (requiere conexión a internet).'));
 }
 
-function renderCimbraMadera() { renderCmMateriales(); renderCmTipos(); renderCmElems(); renderCmResults(); renderCmDescimbra(); }
+function renderCimbraMadera() { syncLinkedCimbra(); renderCmMateriales(); renderCmTipos(); renderCmElems(); renderCmResults(); renderCmDescimbra(); }
+
+// ─── Resumen / BOM por zapata (cruza concreto + acero + cimbra de madera) ────────
+function renderBomZapatas() {
+  const p = getP();
+  const acp = (typeof getACP === 'function') ? getACP() : { desperdicio: 1 };
+  const tipoCimbra = t => t === 'aislada' ? 'Zapata aislada' : t === 'corrida' ? 'Zapata corrida' : 'Contratrabe/trabe cim.';
+  try { syncLinkedAcero(); } catch (e) {}
+
+  const bloques = zapatas.map(z => {
+    const cc = calcZapata(z, p);
+    // Concreto
+    const concEstr = cc.volConcreto;      // zapata + dado
+    const concPlant = cc.volPlant;
+    const concDala = cc.volDala || 0;
+    // Acero por calibre (c/desperdicio) del elemento ligado
+    const ae = aceroElems.find(e => e.srcKey === 'zapatas:' + z.clave);
+    let aceroRows = '', aceroTot = 0;
+    if (ae && !ae.prefab) {
+      const c = calcElem(ae, acp);
+      const desp = acp.desperdicio || 1;
+      const cals = Object.entries(c.porCal).sort((a, b) => a[0].localeCompare(b[0]));
+      aceroRows = cals.map(([d, kg]) => { aceroTot += kg * desp; return `<span style="display:inline-block;min-width:120px">${d}: <b>${fmt(kg*desp,2)}</b> kg</span>`; }).join(' ');
+      if (!cals.length) aceroRows = '<span style="color:var(--color-text-tertiary)">sin armado</span>';
+    } else {
+      aceroRows = '<span style="color:var(--color-text-tertiary)">— (sin acero ligado)</span>';
+    }
+    // Cimbra de madera (coeficiente del tipo aplicado al área de contacto del elemento)
+    const tC = cmTipo(tipoCimbra(z.tipo)); const mat = cmMat(tC.mat);
+    const areaCimbra = cc.m2Cimbra;
+    const ptAmort = areaCimbra * tC.ptM2 * mat.fd;
+    const pzasMadera = Math.ceil(ptAmort / (ptPorPieza(mat) || 1));
+
+    return `
+      <div class="partida-group" style="margin-bottom:8px">
+        <div class="partida-group-title">${z.clave} — ${z.tipo} (×${z.cant})</div>
+        <div class="partida-row">
+          <div class="partida-desc"><b>Concreto</b> estructural (zapata + dado)${concDala>0?` · dala ${fmt(concDala,3)} m³`:''}${concPlant>0?` · plantilla ${fmt(concPlant,3)} m³`:''}</div>
+          <div class="partida-val">${fmt(concEstr,3)}</div><div class="partida-unit">m³</div>
+          <div class="partida-sub">total c/plantilla+dala: ${fmt(concEstr+concPlant+concDala,3)} m³</div>
+        </div>
+        <div class="partida-row">
+          <div class="partida-desc"><b>Acero</b> por calibre (c/desperdicio): ${aceroRows}</div>
+          <div class="partida-val">${fmt(aceroTot,2)}</div><div class="partida-unit">kg</div>
+          <div class="partida-sub"></div>
+        </div>
+        <div class="partida-row">
+          <div class="partida-desc"><b>Cimbra de madera</b> — ${areaCimbra.toFixed(2)} m² de contacto → ${mat.nombre}</div>
+          <div class="partida-val">${fmtInt(pzasMadera)}</div><div class="partida-unit">pzas</div>
+          <div class="partida-sub">${fmt(ptAmort,1)} PT amortizado</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('bom-label').style.display = '';
+  document.getElementById('bom-zapatas').innerHTML = bloques || '<div class="partida-row"><div class="partida-desc">Sin zapatas capturadas</div></div>';
+  document.getElementById('bom-label').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 // ─── Navegación entre módulos ──────────────────────────────────────────────────
 const VIEWS = ['zapatas', 'muros', 'confinamiento', 'acero', 'cimbra'];
@@ -3004,10 +3099,11 @@ document.getElementById('add-cmmat-btn').addEventListener('click', () => {
   renderCmMateriales(); renderCmTipos(); renderCmElems(); renderCmResults();
 });
 document.getElementById('add-cmelem-btn').addEventListener('click', () => {
-  cmElems.push({ clave: 'E-' + (cmElems.length + 1), tipo: cmTipos[0].tipo, L: 1, A: 0.4, h: 0.3, H: 0, e: 0, nCaras: 2, cant: 1, aparente: false });
+  cmElems.push({ clave: 'L-' + (cmElems.length + 1), tipo: 'Losa maciza', L: 5, A: 4, h: 0, H: 0, e: 0.12, nCaras: 0, cant: 1, aparente: false });
   renderCmElems(); renderCmResults(); renderCmDescimbra();
 });
 document.getElementById('btn-export-cimbra').addEventListener('click', exportCimbraExcel);
+document.getElementById('btn-bom-zap').addEventListener('click', renderBomZapatas);
 document.querySelectorAll('#cm-params input, #cm-params select').forEach(el => {
   el.addEventListener('input', () => { renderCmElems(); renderCmResults(); });
 });
