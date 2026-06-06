@@ -514,6 +514,21 @@
           <input type="number" id="a-rec" value="0.04" step="0.005" min="0">
           <span class="unit-hint">m (descuento por cara)</span>
         </div>
+        <div class="field">
+          <label>Largo por amarre</label>
+          <input type="number" id="a-amarre-largo" value="0.30" step="0.05" min="0">
+          <span class="unit-hint">m de alambre por amarre</span>
+        </div>
+        <div class="field">
+          <label>Peso del alambre</label>
+          <input type="number" id="a-alambre-kgm" value="0.012" step="0.001" min="0">
+          <span class="unit-hint">kg/m (cal. 18 ≈ 0.012)</span>
+        </div>
+        <div class="field">
+          <label>Cruces amarrados</label>
+          <input type="number" id="a-amarre-pct" value="100" step="5" min="0">
+          <span class="unit-hint">% de intersecciones</span>
+        </div>
       </div>
 
       <div class="divider"></div>
@@ -1787,6 +1802,9 @@ function getACP() {
     proyecto:    document.getElementById('a-proyecto').value || 'Proyecto',
     desperdicio: parseFloat(document.getElementById('a-desp').value) || 1,
     rec:         parseFloat(document.getElementById('a-rec').value)  || 0,
+    amarreLargo: parseFloat(document.getElementById('a-amarre-largo').value) || 0,
+    alambreKgm:  parseFloat(document.getElementById('a-alambre-kgm').value)  || 0,
+    amarrePct:   parseFloat(document.getElementById('a-amarre-pct').value)   || 0,
   };
 }
 
@@ -1887,7 +1905,30 @@ function calcElem(el, acp) {
     return Object.assign({}, it, r, { pesoTotal });
   });
   const kgCD = kgSD * (acp.desperdicio || 1);
-  return { items, porCal, kgSD, kgCD, geom };
+
+  // ── Amarres (alambre recocido) ──
+  // Cruces por intersección: parrilla X×Y; estribos × varillas que enlazan; el dado se cuenta aparte.
+  let NL = 0, NT = 0, NE = 0, NV = 0, dV = 0, dE = 0;
+  items.forEach(it => {
+    const esDado = /dado/i.test(it.subElem || '') || /dado/i.test(it.concepto || '');
+    const s = it.sentido;
+    if (esDado) {
+      if (s === 'estribo' || s === 'tran') dE += it.piezas; else dV += it.piezas;
+    } else {
+      if (s === 'long' || s === 'horiz') NL += it.piezas;
+      else if (s === 'tran') NT += it.piezas;
+      else if (s === 'estribo') NE += it.piezas;
+      else if (s === 'vert') NV += it.piezas;
+    }
+  });
+  const RAMAS = 4; // varillas que enlaza un estribo cuando no hay verticales explícitos (esquinas)
+  const cruces = NL * NT                       // parrillas / lechos cruzados
+               + NE * (NV > 0 ? NV : RAMAS)    // estribos × varillas longitudinales/verticales
+               + dE * (dV > 0 ? dV : RAMAS);   // estribos del dado × varillas del dado
+  const amarres   = cruces * (acp.amarrePct || 0) / 100 * (geom.cant || 1);
+  const alambreKg = amarres * (acp.amarreLargo || 0) * (acp.alambreKgm || 0);
+
+  return { items, porCal, kgSD, kgCD, geom, amarres, alambreKg };
 }
 
 // ─── Render: catálogo de calibres ──────────────────────────────────────────────
@@ -2064,11 +2105,13 @@ function aceroAgregado() {
   const acp = getACP();
   const porCalibre = {};   // dia -> kg s/d
   const porTipo = {};      // tipo -> { kgSD, kgCD, porCal }
-  let kgSD = 0;
+  let kgSD = 0, amarres = 0, alambreKg = 0;
   aceroElems.forEach(el => {
     if (el.prefab) return; // armex prefabricado: no es varilla suelta
     const c = calcElem(el, acp);
     kgSD += c.kgSD;
+    amarres += c.amarres;
+    alambreKg += c.alambreKg;
     if (!porTipo[el.tipo]) porTipo[el.tipo] = { kgSD: 0, kgCD: 0, porCal: {} };
     porTipo[el.tipo].kgSD += c.kgSD;
     porTipo[el.tipo].kgCD += c.kgCD;
@@ -2078,7 +2121,7 @@ function aceroAgregado() {
     });
   });
   const kgCD = kgSD * (acp.desperdicio || 1);
-  return { porCalibre, porTipo, kgSD, kgCD, acp };
+  return { porCalibre, porTipo, kgSD, kgCD, amarres, alambreKg, acp };
 }
 
 function renderAceroResults() {
@@ -2095,6 +2138,14 @@ function renderAceroResults() {
     <div class="total-card accent-blue">
       <div class="total-label">Acero total c/d</div>
       <div class="total-value">${fmt(ag.kgCD/1000,3)}<span class="total-unit">t</span></div>
+    </div>
+    <div class="total-card accent-amber">
+      <div class="total-label">Alambre recocido</div>
+      <div class="total-value">${fmt(ag.alambreKg,2)}<span class="total-unit">kg</span></div>
+    </div>
+    <div class="total-card">
+      <div class="total-label">Amarres</div>
+      <div class="total-value">${fmtInt(ag.amarres)}<span class="total-unit">amarres</span></div>
     </div>
   `;
 
@@ -2153,6 +2204,9 @@ function setAceroUI(ap) {
   if (ap.proyecto    != null) document.getElementById('a-proyecto').value = ap.proyecto;
   if (ap.desperdicio != null) document.getElementById('a-desp').value     = ap.desperdicio;
   if (ap.rec         != null) document.getElementById('a-rec').value      = ap.rec;
+  if (ap.amarreLargo != null) document.getElementById('a-amarre-largo').value = ap.amarreLargo;
+  if (ap.alambreKgm  != null) document.getElementById('a-alambre-kgm').value  = ap.alambreKgm;
+  if (ap.amarrePct   != null) document.getElementById('a-amarre-pct').value   = ap.amarrePct;
 }
 
 // ─── Slugs para el master / WBS ────────────────────────────────────────────────
@@ -2173,6 +2227,7 @@ function getAceroSlugs() {
     const tk = `acero.tipo.${norm(el.tipo)}`;
     slugs[tk] = (slugs[tk] || 0) + c.kgCD;
     total += c.kgCD;
+    slugs['alambre.recocido'] = (slugs['alambre.recocido'] || 0) + c.alambreKg;
   });
   slugs['acero.total'] = total;
   return slugs;
@@ -2311,6 +2366,12 @@ function buildAceroWorkbook() {
   headCal.forEach(d => totFila.push(round2(ag.porCalibre[d] || 0)));
   totFila.push(round2(totOtros), round2(ag.kgSD), round2(ag.kgCD));
   resumen.push(totFila);
+
+  // Alambre recocido para amarres
+  resumen.push([]);
+  resumen.push(['ALAMBRE RECOCIDO (AMARRES)']);
+  resumen.push(['Amarres', 'Largo/amarre (m)', 'kg/m', 'Alambre (kg)']);
+  resumen.push([Math.round(ag.amarres), acp.amarreLargo, acp.alambreKgm, round2(ag.alambreKg)]);
 
   // Acero prefabricado (armex) — se reporta aparte, NO como varilla suelta
   const ax = armexResumen();
