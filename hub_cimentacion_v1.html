@@ -1632,9 +1632,26 @@ const CONCEPTOS = {
 };
 const TIPOS_ELEM = ['zapata', 'contratrabe', 'trabe', 'columna', 'castillo', 'dala', 'muro', 'losa', 'otro'];
 
+// Helper para crear un item de armado
+function armItem(subElem, concepto, dia, sep, piezas) {
+  return { subElem, concepto, dia, sep: sep || 0, piezas: piezas || 0, largoOverride: 0 };
+}
+
+// Armado de zapata incluyendo el dado (si la zapata aislada lo tiene):
+//   dado LONGITUDINAL = vertical de largo H. Dado (cantidad de varillas)
+//   dado ESTRIBO (transversal) = por separación sobre H. Dado
+function defaultArmadoZapata(z) {
+  const arm = [armItem('zapata','PARRILLA X (inf)','#4',0.15,0), armItem('zapata','PARRILLA Y (inf)','#4',0.15,0)];
+  if (z && z.tipo === 'aislada' && z.anchoDado > 0 && z.altDado > 0) {
+    arm.push(armItem('dado','LONGITUDINAL','#4',0,4));    // varillas verticales, largo = H. Dado
+    arm.push(armItem('dado','ESTRIBO','#2.5',0.20,0));    // estribos por separación sobre H. Dado
+  }
+  return arm;
+}
+
 // Armado por defecto y razonable por tipo (configurable; el usuario lo edita libremente)
 function defaultArmado(tipo) {
-  const a = (subElem, concepto, dia, sep, piezas) => ({ subElem, concepto, dia, sep: sep || 0, piezas: piezas || 0, largoOverride: 0 });
+  const a = armItem;
   switch (tipo) {
     case 'zapata':      return [a('zapata','PARRILLA X (inf)','#4',0.15,0), a('zapata','PARRILLA Y (inf)','#4',0.15,0)];
     case 'contratrabe': return [a('contratrabe','LONGITUDINAL SUP','#5',0,2), a('contratrabe','LONGITUDINAL INF','#5',0,2), a('contratrabe','ESTRIBO','#3',0.20,0)];
@@ -1648,11 +1665,9 @@ function defaultArmado(tipo) {
   }
 }
 
-let aceroElems = [
-  { clave: 'Z-1',  tipo: 'zapata',      largo: 1.10, ancho: 1.10, peralte: 0.25, altura: 0,    cant: 8, armado: defaultArmado('zapata') },
-  { clave: 'CT-1', tipo: 'contratrabe', largo: 27.40, ancho: 0.20, peralte: 0.60, altura: 0,   cant: 1, armado: defaultArmado('contratrabe') },
-  { clave: 'K-1',  tipo: 'columna',     largo: 0,    ancho: 0.30, peralte: 0.30, altura: 3.00,  cant: 6, armado: defaultArmado('columna') },
-];
+// Los elementos se generan en vivo desde la matriz (zapatas/confinamiento) vía syncLinkedAcero();
+// también pueden agregarse elementos manuales sueltos. NO se hard-codea ningún proyecto.
+let aceroElems = [];
 let aceroActivo = null; // índice del elemento cuyo armado se edita
 
 function getACP() {
@@ -1675,38 +1690,65 @@ function sentidoConcepto(concepto) {
   return 'long'; // LONGITUDINAL, PARRILLA X, etc.
 }
 
-// Núcleo universal: determina largo, long total, piezas y peso unitario de un item de armado
-function calcItem(el, item, acp) {
+// Geometría EN VIVO del elemento: si está ligado a otro módulo, se lee de él (no es copia)
+function elemGeom(el) {
+  if (el.origen === 'zapatas') {
+    const z = zapatas.find(z => 'zapatas:' + z.clave === el.srcKey);
+    if (z) {
+      const tipo = z.tipo === 'aislada' ? 'zapata' : 'contratrabe';
+      const dado = (z.tipo === 'aislada' && z.anchoDado > 0 && z.altDado > 0) ? { ancho: z.anchoDado, alt: z.altDado } : null;
+      return { tipo, largo: z.tipo === 'contratrabe' ? 1.0 : (z.largo || 0), ancho: z.ancho || 0, peralte: z.peralte || 0, altura: 0, cant: z.cant || 1, dado, ligado: true };
+    }
+  }
+  if (el.origen === 'confinamiento') {
+    const cf = confina.find(c => 'confinamiento:' + c.clave === el.srcKey);
+    if (cf) {
+      const esVert = cf.tipo === 'castillo';
+      return { tipo: esVert ? 'castillo' : 'dala', largo: esVert ? 0 : (cf.longitud || 0), ancho: cf.a || 0, peralte: cf.b || 0, altura: esVert ? (cf.longitud || 0) : 0, cant: cf.cant || 1, ligado: true };
+    }
+  }
+  // Elemento manual: geometría propia
+  return { tipo: el.tipo, largo: el.largo || 0, ancho: el.ancho || 0, peralte: el.peralte || 0, altura: el.altura || 0, cant: el.cant || 1, ligado: false };
+}
+
+// Núcleo universal: largo según geometría + concepto; long total = largo + gancho + escuadra
+// El largo usa la DIMENSIÓN REAL del elemento (la de la matriz); el recubrimiento solo
+// descuenta en estribos (perímetro interior de la sección).
+function calcItem(geom, item, acp) {
   const cal = calibrePorDia(item.dia);
   const rec = acp.rec || 0;
-  const L = el.largo || 0, A = el.ancho || 0, H = el.peralte || 0, Ht = el.altura || 0;
   const s = sentidoConcepto(item.concepto);
+  const esDado = geom.dado && (/dado/i.test(item.subElem || '') || /dado/i.test(item.concepto || ''));
 
-  let largo;
+  let largo, paralelo;
   if (item.largoOverride && item.largoOverride > 0) {
     largo = item.largoOverride;
-  } else if (s === 'long' || s === 'horiz') {
-    largo = Math.max(0, L - 2 * rec);
-  } else if (s === 'tran') {
-    largo = Math.max(0, A - 2 * rec);
-  } else if (s === 'vert') {
-    largo = Math.max(0, Ht + H); // altura + anclaje al peralte
-  } else { // estribo = perímetro de la sección (ancho × peralte)
-    largo = Math.max(0, 2 * ((A - 2 * rec) + (H - 2 * rec)));
+    paralelo = geom.dado && esDado ? geom.dado.alt : (geom.largo || 0);
+  } else if (esDado) {
+    // DADO: vertical de largo H. Dado; estribos = perímetro de la sección, repartidos sobre H. Dado
+    const d = geom.dado;
+    if (s === 'estribo' || s === 'tran') {
+      largo = Math.max(0, 4 * (d.ancho - 2 * rec));   // perímetro de la sección cuadrada del dado
+    } else {
+      largo = d.alt;                                   // longitudinal/vertical del dado = H. Dado
+    }
+    paralelo = d.alt;                                  // los estribos se reparten en la altura del dado
+  } else {
+    const L = geom.largo || 0, A = geom.ancho || 0, H = geom.peralte || 0, Ht = geom.altura || 0;
+    if (s === 'long' || s === 'horiz') { largo = L; paralelo = A; }
+    else if (s === 'tran')             { largo = A; paralelo = L; }
+    else if (s === 'vert')             { largo = Math.max(0, Ht + H); paralelo = L; }
+    else                               { largo = Math.max(0, 2 * ((A - 2 * rec) + (H - 2 * rec))); paralelo = L; } // estribo
   }
 
   const gancho   = cal ? cal.gancho : 0;
   const escuadra = cal ? cal.escuadra : 0;
-  const longTotal = largo + gancho + escuadra;
+  const longTotal = largo > 0 ? largo + gancho + escuadra : 0;
 
   // Piezas: por separación (se reparten a lo largo de la dimensión paralela) o directas
   let piezas = item.piezas || 0;
   if (item.sep && item.sep > 0) {
-    const paralelo = (s === 'long')  ? A
-                   : (s === 'tran')  ? L
-                   : (s === 'horiz') ? Ht
-                   :                   L; // vert y estribo se reparten a lo largo de L
-    piezas = Math.ceil(Math.max(0, paralelo - 2 * rec) / item.sep) + 1;
+    piezas = Math.ceil(Math.max(0, paralelo) / item.sep) + 1;
   }
 
   const kgm = cal ? cal.kgm : 0;
@@ -1715,17 +1757,18 @@ function calcItem(el, item, acp) {
 }
 
 function calcElem(el, acp) {
+  const geom = elemGeom(el);
   const porCal = {};
   let kgSD = 0;
   const items = (el.armado || []).map(it => {
-    const r = calcItem(el, it, acp);
-    const pesoTotal = r.pesoUnit * (el.cant || 1);
+    const r = calcItem(geom, it, acp);
+    const pesoTotal = r.pesoUnit * (geom.cant || 1);
     kgSD += pesoTotal;
     porCal[it.dia] = (porCal[it.dia] || 0) + pesoTotal;
     return Object.assign({}, it, r, { pesoTotal });
   });
   const kgCD = kgSD * (acp.desperdicio || 1);
-  return { items, porCal, kgSD, kgCD };
+  return { items, porCal, kgSD, kgCD, geom };
 }
 
 // ─── Render: catálogo de calibres ──────────────────────────────────────────────
@@ -1768,28 +1811,34 @@ function renderAceroElems() {
   body.innerHTML = '';
   aceroElems.forEach((el, i) => {
     const c = calcElem(el, acp);
+    const g = c.geom;
     const tr = document.createElement('tr');
     if (i === aceroActivo) tr.style.background = 'color-mix(in srgb, #1D9E75 7%, transparent)';
     const esPrefab = !!el.prefab;
+    const ligado = g.ligado; // geometría tomada de la matriz → solo lectura aquí
     const origenTag = el.origen ? `<div style="font-size:9px;color:var(--color-text-tertiary);margin-top:2px">↗ ${el.origen}${esPrefab?' · armex':''}</div>` : '';
+    // celda de dimensión: input editable (manual) o valor de solo lectura (ligado)
+    const dim = (campo, val) => ligado
+      ? `<td class="num td-locked">${(val||0).toFixed(2)}</td>`
+      : `<td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-ae="${i}" data-af="${campo}" value="${(val||0).toFixed(2)}"></td>`;
     tr.innerHTML = `
-      <td><input class="inp-sm inp-clave" data-ae="${i}" data-af="clave" value="${el.clave}">${origenTag}</td>
-      <td>
-        <select class="inp-sm inp-tipo" data-ae="${i}" data-af="tipo">
-          ${TIPOS_ELEM.map(t => `<option value="${t}" ${el.tipo===t?'selected':''}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('')}
-        </select>
-      </td>
-      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-ae="${i}" data-af="largo" value="${(el.largo||0).toFixed(2)}"></td>
-      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-ae="${i}" data-af="ancho" value="${(el.ancho||0).toFixed(2)}"></td>
-      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-ae="${i}" data-af="peralte" value="${(el.peralte||0).toFixed(2)}"></td>
-      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-ae="${i}" data-af="altura" value="${(el.altura||0).toFixed(2)}"></td>
-      <td class="num"><input class="inp-sm inp-cant" type="number" step="1" min="1" data-ae="${i}" data-af="cant" value="${el.cant}"></td>
+      <td>${ligado
+            ? `<span class="inp-clave" style="font-size:12.5px;font-weight:500">${el.clave}</span>`
+            : `<input class="inp-sm inp-clave" data-ae="${i}" data-af="clave" value="${el.clave}">`}${origenTag}</td>
+      <td>${ligado
+            ? `<span style="font-size:12.5px">${g.tipo}</span>`
+            : `<select class="inp-sm inp-tipo" data-ae="${i}" data-af="tipo">${TIPOS_ELEM.map(t => `<option value="${t}" ${el.tipo===t?'selected':''}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('')}</select>`}</td>
+      ${dim('largo', g.largo)}
+      ${dim('ancho', g.ancho)}
+      ${dim('peralte', g.peralte)}
+      ${dim('altura', g.altura)}
+      ${ligado ? `<td class="num td-locked">${g.cant}</td>` : `<td class="num"><input class="inp-sm inp-cant" type="number" step="1" min="1" data-ae="${i}" data-af="cant" value="${el.cant}"></td>`}
       <td class="num computed">${esPrefab ? '—' : fmt(c.kgSD,2)}</td>
       <td class="num computed">${esPrefab ? '—' : fmt(c.kgCD,2)}</td>
       <td>${esPrefab
             ? `<span style="font-size:11px;color:var(--color-text-tertiary)" title="El acero de este elemento es armex prefabricado; se cuantifica en el módulo Confinamiento">armex (prefab)</span>`
             : `<button class="add-btn" style="margin:0;padding:3px 9px" data-armar="${i}">Armar ✎</button>`}</td>
-      <td><button class="del-btn" data-aedel="${i}">✕</button></td>
+      <td>${ligado ? '' : `<button class="del-btn" data-aedel="${i}">✕</button>`}</td>
     `;
     body.appendChild(tr);
   });
@@ -1840,22 +1889,23 @@ function renderArmado() {
     return;
   }
   const el = aceroElems[aceroActivo];
-  label.textContent = `Armado del elemento ${el.clave} (${el.tipo})`;
-  tip.textContent = 'Longitudinales corren el largo; transversales el ancho; estribos = perímetro de la sección; verticales = altura+peralte. "Sep" calcula las piezas; "Largo man." pisa el largo automático.';
+  const geom = elemGeom(el);
+  label.textContent = `Armado del elemento ${el.clave} (${geom.tipo})`;
+  tip.textContent = 'La geometría se toma de la matriz. Longitudinal corre el largo; transversal el ancho; estribo = perímetro de sección; vertical = altura. En "dado": longitudinal = H. Dado (pon cantidad de varillas) y transversal = estribos (pon separación). "Sep" calcula las piezas; "Largo man." pisa el largo.';
   addBtn.style.display = '';
 
   // Datalist de conceptos sugeridos para este tipo (catálogo abierto)
-  let dl = document.getElementById('conc-' + el.tipo);
-  if (!dl) { dl = document.createElement('datalist'); dl.id = 'conc-' + el.tipo; document.body.appendChild(dl); }
-  dl.innerHTML = (CONCEPTOS[el.tipo] || []).map(x => `<option value="${x}">`).join('');
+  let dl = document.getElementById('conc-' + geom.tipo);
+  if (!dl) { dl = document.createElement('datalist'); dl.id = 'conc-' + geom.tipo; document.body.appendChild(dl); }
+  dl.innerHTML = (CONCEPTOS[geom.tipo] || []).map(x => `<option value="${x}">`).join('');
 
   const diaOpts = aceroCalibres.map(c => c.dia);
   (el.armado || []).forEach((it, j) => {
-    const r = calcItem(el, it, acp);
+    const r = calcItem(geom, it, acp);
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input class="inp-sm inp-tipo" data-arm="${j}" data-rf="subElem" value="${it.subElem||''}" list="conc-${el.tipo}"></td>
-      <td><input class="inp-sm" style="width:150px" data-arm="${j}" data-rf="concepto" value="${it.concepto||''}" list="conc-${el.tipo}"></td>
+      <td><input class="inp-sm inp-tipo" data-arm="${j}" data-rf="subElem" value="${it.subElem||''}" list="conc-${geom.tipo}"></td>
+      <td><input class="inp-sm" style="width:150px" data-arm="${j}" data-rf="concepto" value="${it.concepto||''}" list="conc-${geom.tipo}"></td>
       <td>
         <select class="inp-sm" style="width:64px" data-arm="${j}" data-rf="dia">
           ${diaOpts.map(d => `<option value="${d}" ${it.dia===d?'selected':''}>${d}</option>`).join('')}
@@ -2010,40 +2060,46 @@ function getAceroSlugs() {
 }
 window.getAceroSlugs = getAceroSlugs; // expuesto para el módulo de mapeo/master
 
-// ─── Vinculación con otros módulos (engancha la geometría ya capturada) ─────────
-// Zapatas → elementos con armado de varilla. Confinamiento → elementos PREFAB (armex),
-// que NO generan varilla suelta (su acero se compra por pieza/tramo en Confinamiento).
-function sincronizarElementos() {
-  let nuevos = 0, actualizados = 0;
-  const upsert = (srcKey, build) => {
-    const ex = aceroElems.find(x => x.srcKey === srcKey);
-    if (ex) { Object.assign(ex, build.geom); actualizados++; }
-    else { aceroElems.push(Object.assign({ srcKey }, build.base, build.geom)); nuevos++; }
-  };
-
+// ─── Vinculación EN VIVO con otros módulos ──────────────────────────────────────
+// Los elementos de Zapatas y Confinamiento se reflejan automáticamente como elementos
+// de acero, SIN copiar geometría: ésta se lee en vivo de la matriz (elemGeom). Aquí solo
+// se asegura que exista un elemento por cada uno y se eliminan los vinculados huérfanos;
+// el armado capturado se preserva.
+function syncLinkedAcero() {
+  // Crear los que falten (sin geometría: se resuelve en vivo)
   try {
     zapatas.forEach(z => {
-      const tipo = (z.tipo === 'aislada') ? 'zapata' : 'contratrabe';
-      upsert('zapatas:' + z.clave, {
-        base: { clave: z.clave, tipo, origen: 'zapatas', armado: defaultArmado(tipo) },
-        geom: { largo: z.largo || 0, ancho: z.ancho || 0, peralte: z.peralte || 0, altura: 0, cant: z.cant || 1 },
-      });
+      const srcKey = 'zapatas:' + z.clave;
+      if (!aceroElems.some(e => e.srcKey === srcKey)) {
+        const tipo = (z.tipo === 'aislada') ? 'zapata' : 'contratrabe';
+        const armado = (tipo === 'zapata') ? defaultArmadoZapata(z) : defaultArmado(tipo);
+        aceroElems.push({ clave: z.clave, tipo, srcKey, origen: 'zapatas', armado });
+      }
     });
   } catch (e) {}
-
   try {
     confina.forEach(cf => {
-      const tipo = (cf.tipo === 'castillo') ? 'castillo' : 'dala';
-      const esVert = cf.tipo === 'castillo';
-      upsert('confinamiento:' + cf.clave, {
-        base: { clave: cf.clave, tipo, origen: 'confinamiento', prefab: 'armex', armado: [] },
-        geom: { largo: esVert ? 0 : (cf.longitud || 0), ancho: cf.a || 0, peralte: cf.b || 0, altura: esVert ? (cf.longitud || 0) : 0, cant: cf.cant || 1 },
-      });
+      const srcKey = 'confinamiento:' + cf.clave;
+      if (!aceroElems.some(e => e.srcKey === srcKey)) {
+        const tipo = (cf.tipo === 'castillo') ? 'castillo' : 'dala';
+        aceroElems.push({ clave: cf.clave, tipo, srcKey, origen: 'confinamiento', prefab: 'armex', armado: [] });
+      }
     });
   } catch (e) {}
+  // Eliminar vinculados cuyo origen ya no existe (no pueden quedar aislados de la matriz)
+  aceroElems = aceroElems.filter(e => {
+    if (!e.origen) return true; // manual
+    if (e.origen === 'zapatas')       return zapatas.some(z => 'zapatas:' + z.clave === e.srcKey);
+    if (e.origen === 'confinamiento') return confina.some(c => 'confinamiento:' + c.clave === e.srcKey);
+    return true;
+  });
+  if (aceroActivo != null && aceroActivo >= aceroElems.length) aceroActivo = null;
+}
 
+function sincronizarElementos() {
+  syncLinkedAcero();
   renderAceroElems(); renderArmado(); renderAceroResults();
-  alert(`Vinculación: ${nuevos} elemento(s) nuevo(s), ${actualizados} actualizado(s).\nLos elementos de confinamiento se marcan como "armex (prefab)" y no generan varilla suelta.`);
+  alert('Elementos sincronizados con la matriz de Zapatas y Confinamiento.\nLa geometría se toma en vivo de la matriz; el confinamiento es armex (prefab) y no genera varilla suelta.');
 }
 
 // Resumen del armex (prefabricado) leído del módulo Confinamiento — NO es varilla suelta
@@ -2196,6 +2252,10 @@ function showView(v) {
   });
   document.querySelectorAll('.nav-item[data-view]').forEach(n =>
     n.classList.toggle('active', n.dataset.view === v));
+  if (v === 'acero') { // sincroniza en vivo con la matriz al entrar al módulo
+    syncLinkedAcero();
+    renderAceroElems(); renderArmado(); renderAceroResults();
+  }
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(n =>
   n.addEventListener('click', () => showView(n.dataset.view)));
@@ -2330,6 +2390,7 @@ function loadAll(file) {
       renderMuroResults();
       renderConfTable();
       renderConfResults();
+      syncLinkedAcero();
       renderCalibres();
       renderAceroElems();
       renderArmado();
@@ -2371,6 +2432,7 @@ renderMuroTable();
 renderMuroResults();
 renderConfTable();
 renderConfResults();
+syncLinkedAcero();
 renderCalibres();
 renderAceroElems();
 renderArmado();
