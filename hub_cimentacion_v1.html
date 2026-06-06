@@ -134,6 +134,7 @@
     </div>
     <div class="nav-item" data-view="confinamiento"><span class="nav-icon">⬜</span><span>Confinamiento</span></div>
     <div class="nav-item" data-view="acero"><span class="nav-icon">▥</span><span>Acero</span></div>
+    <div class="nav-item" data-view="cimbra"><span class="nav-icon">▦</span><span>Cimbra</span></div>
     <div class="nav-item" data-view="muros"><span class="nav-icon">◫</span><span>Muros</span></div>
     <div class="nav-item coming"><span class="nav-icon">⊞</span><span>Losas</span><span class="badge">pronto</span></div>
     <div class="nav-item coming"><span class="nav-icon">◈</span><span>Trazo</span><span class="badge">pronto</span></div>
@@ -610,6 +611,73 @@
       <div class="section-label">Resumen por calibre</div>
       <div class="partidas" id="acero-resumen"></div>
     </div><!-- /view-acero -->
+
+    <div id="view-cimbra" style="display:none;">
+      <div class="module-header">
+        <div class="module-title">Cimbra — obra falsa y materiales</div>
+        <div class="module-desc">Estima m² de cimbra y desglosa tarima, polines, barrotes, chaflanes y alambre recocido según la naturaleza del elemento</div>
+      </div>
+
+      <div class="toolbar">
+        <button class="tool-btn primary" id="btn-save-cb">💾 Guardar cuantificación</button>
+        <label class="tool-btn" style="margin:0;">
+          📂 Cargar cuantificación
+          <input type="file" id="inp-load-cb" accept=".json" style="display:none;">
+        </label>
+        <button class="tool-btn" id="btn-vincular-cimbra">🔗 Vincular m² (zapatas/confinamiento)</button>
+      </div>
+
+      <!-- Parámetros globales -->
+      <div class="section-label">Parámetros globales de cimbra</div>
+      <div class="params-grid" id="cimbra-params">
+        <div class="field"><label>Área útil de hoja</label><input type="number" id="cb-area-hoja" value="2.98" step="0.01" min="0.1"><span class="unit-hint">m² (triplay 1.22×2.44)</span></div>
+        <div class="field"><label>Merma</label><input type="number" id="cb-merma" value="10" step="1" min="0"><span class="unit-hint">% de desperdicio</span></div>
+        <div class="field"><label>Usos tarima</label><input type="number" id="cb-usos-tarima" value="4" step="1" min="1"><span class="unit-hint">reúsos del triplay</span></div>
+        <div class="field"><label>Usos polín</label><input type="number" id="cb-usos-polin" value="8" step="1" min="1"><span class="unit-hint">reúsos</span></div>
+        <div class="field"><label>Usos barrote</label><input type="number" id="cb-usos-barrote" value="8" step="1" min="1"><span class="unit-hint">reúsos</span></div>
+        <div class="field"><label>Usos chaflán</label><input type="number" id="cb-usos-chaflan" value="3" step="1" min="1"><span class="unit-hint">reúsos</span></div>
+        <div class="field"><label>Largo polín</label><input type="number" id="cb-largo-polin" value="2.50" step="0.1" min="0.1"><span class="unit-hint">m por pieza</span></div>
+        <div class="field"><label>Largo barrote</label><input type="number" id="cb-largo-barrote" value="2.50" step="0.1" min="0.1"><span class="unit-hint">m por pieza</span></div>
+        <div class="field"><label>Largo chaflán</label><input type="number" id="cb-largo-chaflan" value="2.44" step="0.1" min="0.1"><span class="unit-hint">m por tramo</span></div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Coeficientes por naturaleza del elemento (editable)</div>
+      <p class="tip">Consumo por m² de cimbra de cada material según el tipo de elemento. Tarima en m²/m² (1 = contacto total); polín y barrote en pza/m²; chaflán en ml/m²; alambre en kg/m² (para amarres de la cimbra).</p>
+      <div class="table-wrap" style="margin-top:10px;">
+        <table class="zap-table" style="min-width:760px;">
+          <thead>
+            <tr><th>Tipo</th><th class="num">Tarima (m²/m²)</th><th class="num">Polín (pz/m²)</th><th class="num">Barrote (pz/m²)</th><th class="num">Chaflán (ml/m²)</th><th class="num">Alambre (kg/m²)</th><th></th></tr>
+          </thead>
+          <tbody id="cimbra-tipos-body"></tbody>
+        </table>
+      </div>
+      <button class="add-btn" id="add-cbtipo-btn">+ Agregar tipo</button>
+
+      <div class="divider"></div>
+      <div class="section-label">Elementos a cimbrar</div>
+      <p class="tip">Captura el área de cimbra (m²) de cada elemento, o pulsa "Vincular" para traer la cimbra ya calculada en Zapatas y Confinamiento. El desglose de materiales depende del tipo.</p>
+      <div class="table-wrap" style="margin-top:10px;">
+        <table class="zap-table" style="min-width:1000px;">
+          <thead>
+            <tr>
+              <th>Clave</th><th>Tipo</th><th class="num">m² cimbra</th><th class="num">Cant.</th>
+              <th class="num">m² total</th><th class="num">Tarima (m²)</th><th class="num">Polín (pz)</th><th class="num">Barrote (pz)</th><th class="num">Chaflán (ml)</th><th class="num">Alambre (kg)</th><th></th><th></th>
+            </tr>
+          </thead>
+          <tbody id="cimbra-elem-body"></tbody>
+        </table>
+      </div>
+      <button class="add-btn" id="add-cbelem-btn">+ Agregar elemento</button>
+
+      <div class="divider"></div>
+      <div class="section-label">Totales de cimbra</div>
+      <div class="totals-row" id="cimbra-totals"></div>
+
+      <div class="divider"></div>
+      <div class="section-label">Partidas de obra</div>
+      <div class="partidas" id="cimbra-partidas"></div>
+    </div><!-- /view-cimbra -->
   </div>
 </div>
 
@@ -2436,8 +2504,205 @@ function exportAceroExcel() {
   }).catch(() => alert('No se pudo cargar la librería de Excel (requiere conexión a internet).'));
 }
 
+// ─── Cimbra: obra falsa y materiales ───────────────────────────────────────────
+// Coeficientes de consumo por m² de cimbra, según la naturaleza del elemento (editable)
+let cimbraTipos = [
+  { tipo: 'Losa',        tarima: 1.0, polin: 0.70, barrote: 1.20, chaflan: 0.00, alambreKgM2: 0.00 },
+  { tipo: 'Trabe',       tarima: 1.0, polin: 0.40, barrote: 1.50, chaflan: 0.50, alambreKgM2: 0.03 },
+  { tipo: 'Columna',     tarima: 1.0, polin: 0.00, barrote: 2.00, chaflan: 0.80, alambreKgM2: 0.10 },
+  { tipo: 'Muro',        tarima: 1.0, polin: 0.00, barrote: 1.80, chaflan: 0.00, alambreKgM2: 0.12 },
+  { tipo: 'Zapata',      tarima: 1.0, polin: 0.00, barrote: 1.00, chaflan: 0.00, alambreKgM2: 0.02 },
+  { tipo: 'Dala/cadena', tarima: 1.0, polin: 0.00, barrote: 1.20, chaflan: 0.40, alambreKgM2: 0.03 },
+  { tipo: 'Contratrabe', tarima: 1.0, polin: 0.30, barrote: 1.30, chaflan: 0.40, alambreKgM2: 0.03 },
+];
+let cimbraParams = { areaHoja: 2.98, merma: 10, usosTarima: 4, usosPolin: 8, usosBarrote: 8, usosChaflan: 3, largoPolin: 2.50, largoBarrote: 2.50, largoChaflan: 2.44 };
+let cimbraElems = [
+  { clave: 'CB-1', tipo: 'Columna', m2: 12.0, cant: 1 },
+];
+
+function getCimP() {
+  const v = id => parseFloat(document.getElementById(id).value) || 0;
+  return {
+    areaHoja: v('cb-area-hoja') || 2.98, merma: v('cb-merma'),
+    usosTarima: v('cb-usos-tarima') || 1, usosPolin: v('cb-usos-polin') || 1,
+    usosBarrote: v('cb-usos-barrote') || 1, usosChaflan: v('cb-usos-chaflan') || 1,
+    largoPolin: v('cb-largo-polin') || 1, largoBarrote: v('cb-largo-barrote') || 1, largoChaflan: v('cb-largo-chaflan') || 1,
+  };
+}
+function coeffsCimbra(tipo) {
+  return cimbraTipos.find(t => t.tipo === tipo) || { tarima: 1, polin: 0, barrote: 0, chaflan: 0, alambreKgM2: 0 };
+}
+function cimbraM2(el) {
+  if (el.origen === 'zapatas') { const z = zapatas.find(z => 'zapatas:' + z.clave === el.srcKey); return z ? calcZapata(z, getP()).m2Cimbra : 0; }
+  if (el.origen === 'confinamiento') { const cf = confina.find(c => 'confinamiento:' + c.clave === el.srcKey); return cf ? calcConf(cf, getCP()).m2Cimbra : 0; }
+  return (el.m2 || 0) * (el.cant || 1);
+}
+function calcCimbraElem(el) {
+  const co = coeffsCimbra(el.tipo);
+  const m2 = cimbraM2(el);
+  return {
+    m2,
+    tarimaM2: m2 * co.tarima,
+    polinPz:  m2 * co.polin,
+    barrotePz: m2 * co.barrote,
+    chaflanMl: m2 * co.chaflan,
+    alambreKg: m2 * co.alambreKgM2,
+    ligado: !!el.origen,
+  };
+}
+
+function renderCimbraTipos() {
+  const body = document.getElementById('cimbra-tipos-body');
+  body.innerHTML = '';
+  cimbraTipos.forEach((t, i) => {
+    const tr = document.createElement('tr');
+    const f = (campo, val, step) => `<td class="num"><input class="inp-sm inp-dim" type="number" min="0" step="${step||0.05}" data-ct="${i}" data-cf="${campo}" value="${val}"></td>`;
+    tr.innerHTML = `
+      <td><input class="inp-sm inp-tipo" data-ct="${i}" data-cf="tipo" value="${t.tipo}"></td>
+      ${f('tarima', t.tarima, 0.05)}${f('polin', t.polin, 0.05)}${f('barrote', t.barrote, 0.05)}${f('chaflan', t.chaflan, 0.05)}${f('alambreKgM2', t.alambreKgM2, 0.01)}
+      <td><button class="del-btn" data-ctdel="${i}">✕</button></td>`;
+    body.appendChild(tr);
+  });
+  body.querySelectorAll('[data-ct]').forEach(el => {
+    el.addEventListener('change', () => {
+      const i = parseInt(el.dataset.ct), f = el.dataset.cf;
+      if (f === 'tipo') cimbraTipos[i].tipo = el.value;
+      else cimbraTipos[i][f] = parseFloat(el.value) || 0;
+      renderCimbraElems(); renderCimbraResults();
+    });
+  });
+  body.querySelectorAll('[data-ctdel]').forEach(btn => {
+    btn.addEventListener('click', () => { cimbraTipos.splice(parseInt(btn.dataset.ctdel), 1); renderCimbraTipos(); renderCimbraElems(); renderCimbraResults(); });
+  });
+}
+
+function renderCimbraElems() {
+  const body = document.getElementById('cimbra-elem-body');
+  body.innerHTML = '';
+  const opts = cimbraTipos.map(t => t.tipo);
+  cimbraElems.forEach((el, i) => {
+    const c = calcCimbraElem(el);
+    const ligado = c.ligado;
+    const tr = document.createElement('tr');
+    const origenTag = el.origen ? `<div style="font-size:9px;color:var(--color-text-tertiary);margin-top:2px">↗ ${el.origen}</div>` : '';
+    tr.innerHTML = `
+      <td>${ligado ? `<span style="font-size:12.5px;font-weight:500">${el.clave}</span>` : `<input class="inp-sm inp-clave" data-ce="${i}" data-cf="clave" value="${el.clave}">`}${origenTag}</td>
+      <td><select class="inp-sm inp-tipo" data-ce="${i}" data-cf="tipo">${opts.map(o => `<option value="${o}" ${el.tipo===o?'selected':''}>${o}</option>`).join('')}</select></td>
+      <td class="num">${ligado ? `<span class="td-locked">${c.m2.toFixed(2)}</span>` : `<input class="inp-sm inp-dim" type="number" min="0" step="0.1" data-ce="${i}" data-cf="m2" value="${(el.m2||0).toFixed(2)}">`}</td>
+      <td class="num">${ligado ? '<span class="td-locked">1</span>' : `<input class="inp-sm inp-cant" type="number" min="1" step="1" data-ce="${i}" data-cf="cant" value="${el.cant||1}">`}</td>
+      <td class="num computed">${c.m2.toFixed(2)}</td>
+      <td class="num computed">${c.tarimaM2.toFixed(2)}</td>
+      <td class="num computed">${c.polinPz.toFixed(1)}</td>
+      <td class="num computed">${c.barrotePz.toFixed(1)}</td>
+      <td class="num computed">${c.chaflanMl.toFixed(2)}</td>
+      <td class="num computed">${c.alambreKg.toFixed(2)}</td>
+      <td></td>
+      <td>${ligado ? '' : `<button class="del-btn" data-cedel="${i}">✕</button>`}</td>`;
+    body.appendChild(tr);
+  });
+  body.querySelectorAll('[data-ce]').forEach(el => {
+    el.addEventListener('change', () => {
+      const i = parseInt(el.dataset.ce), f = el.dataset.cf;
+      if (f === 'clave' || f === 'tipo') cimbraElems[i][f] = el.value;
+      else cimbraElems[i][f] = parseFloat(el.value) || 0;
+      renderCimbraElems(); renderCimbraResults();
+    });
+  });
+  body.querySelectorAll('[data-cedel]').forEach(btn => {
+    btn.addEventListener('click', () => { cimbraElems.splice(parseInt(btn.dataset.cedel), 1); renderCimbraElems(); renderCimbraResults(); });
+  });
+}
+
+function cimbraAgregado() {
+  const prm = getCimP();
+  let m2 = 0, tarimaM2 = 0, polinPz = 0, barrotePz = 0, chaflanMl = 0, alambreKg = 0;
+  cimbraElems.forEach(el => {
+    const c = calcCimbraElem(el);
+    m2 += c.m2; tarimaM2 += c.tarimaM2; polinPz += c.polinPz; barrotePz += c.barrotePz; chaflanMl += c.chaflanMl; alambreKg += c.alambreKg;
+  });
+  const k = 1 + (prm.merma || 0) / 100;
+  const hojas      = (tarimaM2 / prm.areaHoja) / prm.usosTarima * k;
+  const polines    = polinPz / prm.usosPolin * k;
+  const barrotes   = barrotePz / prm.usosBarrote * k;
+  const chaflanCompraMl = chaflanMl / prm.usosChaflan * k;
+  const chaflanTramos   = chaflanCompraMl / prm.largoChaflan;
+  return { m2, tarimaM2, polinPz, barrotePz, chaflanMl, alambreKg, hojas, polines, barrotes, chaflanCompraMl, chaflanTramos, prm };
+}
+
+function renderCimbraResults() {
+  const ag = cimbraAgregado();
+  document.getElementById('cimbra-totals').innerHTML = `
+    <div class="total-card accent-blue"><div class="total-label">Cimbra total</div><div class="total-value">${fmt(ag.m2,2)}<span class="total-unit">m²</span></div></div>
+    <div class="total-card accent-green"><div class="total-label">Tarima (hojas triplay)</div><div class="total-value">${fmtInt(ag.hojas)}<span class="total-unit">hojas</span></div></div>
+    <div class="total-card"><div class="total-label">Polines</div><div class="total-value">${fmtInt(ag.polines)}<span class="total-unit">pz</span></div></div>
+    <div class="total-card"><div class="total-label">Barrotes</div><div class="total-value">${fmtInt(ag.barrotes)}<span class="total-unit">pz</span></div></div>
+    <div class="total-card"><div class="total-label">Chaflán</div><div class="total-value">${fmtInt(ag.chaflanTramos)}<span class="total-unit">tramos</span></div></div>
+    <div class="total-card accent-amber"><div class="total-label">Alambre recocido</div><div class="total-value">${fmt(ag.alambreKg,2)}<span class="total-unit">kg</span></div></div>
+  `;
+  document.getElementById('cimbra-partidas').innerHTML = `
+    <div class="partida-group">
+      <div class="partida-group-title">Cimbra — materiales (con merma y reúsos)</div>
+      <div class="partida-row highlight">
+        <div class="partida-desc">Cimbra (área de contacto total a cimbrar)</div>
+        <div class="partida-val ${ag.m2===0?'zero':''}">${fmt(ag.m2,2)}</div><div class="partida-unit">m²</div><div class="partida-sub"></div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Tarima / triplay de cimbra (hoja útil ${fmt(ag.prm.areaHoja,2)} m², ${ag.prm.usosTarima} usos)</div>
+        <div class="partida-val ${ag.hojas===0?'zero':''}">${fmtInt(ag.hojas)}</div><div class="partida-unit">hojas</div><div class="partida-sub">${fmt(ag.tarimaM2,2)} m² triplay</div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Polines de madera (${ag.prm.usosPolin} usos, ${fmt(ag.prm.largoPolin,2)} m c/u)</div>
+        <div class="partida-val ${ag.polines===0?'zero':''}">${fmtInt(ag.polines)}</div><div class="partida-unit">pz</div><div class="partida-sub">${fmt(ag.polines*ag.prm.largoPolin,1)} ml</div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Barrotes de madera (${ag.prm.usosBarrote} usos, ${fmt(ag.prm.largoBarrote,2)} m c/u)</div>
+        <div class="partida-val ${ag.barrotes===0?'zero':''}">${fmtInt(ag.barrotes)}</div><div class="partida-unit">pz</div><div class="partida-sub">${fmt(ag.barrotes*ag.prm.largoBarrote,1)} ml</div>
+      </div>
+      <div class="partida-row">
+        <div class="partida-desc">Chaflán / moldura triangular en aristas (${ag.prm.usosChaflan} usos, tramo ${fmt(ag.prm.largoChaflan,2)} m)</div>
+        <div class="partida-val ${ag.chaflanTramos===0?'zero':''}">${fmtInt(ag.chaflanTramos)}</div><div class="partida-unit">tramos</div><div class="partida-sub">${fmt(ag.chaflanCompraMl,2)} ml</div>
+      </div>
+      <div class="partida-row highlight">
+        <div class="partida-desc">Alambre recocido para amarres de cimbra</div>
+        <div class="partida-val ${ag.alambreKg===0?'zero':''}">${fmt(ag.alambreKg,2)}</div><div class="partida-unit">kg</div><div class="partida-sub"></div>
+      </div>
+    </div>
+  `;
+}
+
+function setCimbraUI(prm) {
+  if (!prm) return;
+  const set = (id, val) => { if (val != null) document.getElementById(id).value = val; };
+  set('cb-area-hoja', prm.areaHoja); set('cb-merma', prm.merma);
+  set('cb-usos-tarima', prm.usosTarima); set('cb-usos-polin', prm.usosPolin);
+  set('cb-usos-barrote', prm.usosBarrote); set('cb-usos-chaflan', prm.usosChaflan);
+  set('cb-largo-polin', prm.largoPolin); set('cb-largo-barrote', prm.largoBarrote); set('cb-largo-chaflan', prm.largoChaflan);
+}
+
+function syncLinkedCimbra() {
+  const tipoZ = z => z.tipo === 'contratrabe' ? 'Contratrabe' : 'Zapata';
+  const tipoC = cf => cf.tipo === 'castillo' ? 'Columna' : 'Dala/cadena';
+  try {
+    zapatas.forEach(z => { const k = 'zapatas:' + z.clave; if (!cimbraElems.some(e => e.srcKey === k)) cimbraElems.push({ clave: z.clave, tipo: tipoZ(z), srcKey: k, origen: 'zapatas' }); });
+  } catch (e) {}
+  try {
+    confina.forEach(cf => { const k = 'confinamiento:' + cf.clave; if (!cimbraElems.some(e => e.srcKey === k)) cimbraElems.push({ clave: cf.clave, tipo: tipoC(cf), srcKey: k, origen: 'confinamiento' }); });
+  } catch (e) {}
+  cimbraElems = cimbraElems.filter(e => {
+    if (!e.origen) return true;
+    if (e.origen === 'zapatas') return zapatas.some(z => 'zapatas:' + z.clave === e.srcKey);
+    if (e.origen === 'confinamiento') return confina.some(c => 'confinamiento:' + c.clave === e.srcKey);
+    return true;
+  });
+}
+function vincularCimbra() {
+  syncLinkedCimbra();
+  renderCimbraElems(); renderCimbraResults();
+  alert('Cimbra vinculada con Zapatas y Confinamiento.\nLos m² se leen en vivo de cada módulo; el desglose de materiales usa el coeficiente del tipo.');
+}
+
 // ─── Navegación entre módulos ──────────────────────────────────────────────────
-const VIEWS = ['zapatas', 'muros', 'confinamiento', 'acero'];
+const VIEWS = ['zapatas', 'muros', 'confinamiento', 'acero', 'cimbra'];
 function showView(v) {
   VIEWS.forEach(name => {
     const el = document.getElementById('view-' + name);
@@ -2448,6 +2713,10 @@ function showView(v) {
   if (v === 'acero') { // sincroniza en vivo con la matriz al entrar al módulo
     syncLinkedAcero();
     renderAceroElems(); renderArmado(); renderAceroResults();
+  }
+  if (v === 'cimbra') {
+    syncLinkedCimbra();
+    renderCimbraTipos(); renderCimbraElems(); renderCimbraResults();
   }
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(n =>
@@ -2496,6 +2765,22 @@ document.querySelectorAll('#acero-params input').forEach(el => {
 });
 document.getElementById('btn-vincular-acero').addEventListener('click', sincronizarElementos);
 document.getElementById('btn-export-acero').addEventListener('click', exportAceroExcel);
+
+// ── Cimbra ──
+document.getElementById('add-cbtipo-btn').addEventListener('click', () => {
+  cimbraTipos.push({ tipo: 'Nuevo', tarima: 1.0, polin: 0, barrote: 1.0, chaflan: 0, alambreKgM2: 0 });
+  renderCimbraTipos(); renderCimbraElems(); renderCimbraResults();
+});
+document.getElementById('add-cbelem-btn').addEventListener('click', () => {
+  cimbraElems.push({ clave: 'CB-' + (cimbraElems.length + 1), tipo: cimbraTipos[0] ? cimbraTipos[0].tipo : 'Losa', m2: 10, cant: 1 });
+  renderCimbraElems(); renderCimbraResults();
+});
+document.getElementById('btn-vincular-cimbra').addEventListener('click', vincularCimbra);
+document.querySelectorAll('#cimbra-params input').forEach(el => {
+  el.addEventListener('input', () => { renderCimbraElems(); renderCimbraResults(); });
+});
+document.getElementById('btn-save-cb').addEventListener('click', saveAll);
+document.getElementById('inp-load-cb').addEventListener('change', e => { loadAll(e.target.files[0]); e.target.value = ''; });
 
 document.getElementById('add-rel-btn').addEventListener('click', () => {
   rellenos.push({ material: 'otro', desc: 'Relleno con material compactado', espesor: 0.20, esResto: false });
@@ -2548,10 +2833,11 @@ function setParamsUI(params) {
 }
 
 function saveAll() {
-  const data = { version: 4, params: getParamsObj(), zapatas, rellenos,
+  const data = { version: 5, params: getParamsObj(), zapatas, rellenos,
                  murosParams: getMP(), muros,
                  confinaParams: getCP(), confina,
-                 aceroParams: getACP(), aceroCalibres, aceroElems };
+                 aceroParams: getACP(), aceroCalibres, aceroElems,
+                 cimbraParams: getCimP(), cimbraTipos, cimbraElems };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2576,6 +2862,9 @@ function loadAll(file) {
       if (data.aceroCalibres) aceroCalibres = data.aceroCalibres;
       if (data.aceroElems)    { aceroElems = data.aceroElems; aceroActivo = null; }
       if (data.aceroParams)   setAceroUI(data.aceroParams);
+      if (data.cimbraTipos)   cimbraTipos = data.cimbraTipos;
+      if (data.cimbraElems)   cimbraElems = data.cimbraElems;
+      if (data.cimbraParams)  setCimbraUI(data.cimbraParams);
       renderTable();
       renderRellenos();
       renderResults();
@@ -2588,6 +2877,10 @@ function loadAll(file) {
       renderAceroElems();
       renderArmado();
       renderAceroResults();
+      syncLinkedCimbra();
+      renderCimbraTipos();
+      renderCimbraElems();
+      renderCimbraResults();
     } catch {
       alert('El archivo no es un JSON válido.');
     }
@@ -2630,5 +2923,9 @@ renderCalibres();
 renderAceroElems();
 renderArmado();
 renderAceroResults();
+syncLinkedCimbra();
+renderCimbraTipos();
+renderCimbraElems();
+renderCimbraResults();
 ensureXLSX().catch(() => {}); // precarga SheetJS para que la exportación sea instantánea
 </script>
