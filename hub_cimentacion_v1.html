@@ -3219,12 +3219,11 @@ function loadAll(file) {
       if (data.aceroElems)    { aceroElems = data.aceroElems; aceroActivo = null; }
       if (data.aceroParams)   setAceroUI(data.aceroParams);
       if (data.cmMateriales)  cmMateriales = data.cmMateriales;
-      if (data.cmTipos) data.cmTipos.forEach(s => { // fusiona (preserva composición por defecto; migra material único)
+      if (data.cmTipos) data.cmTipos.forEach(s => { // fusiona sin degradar la composición por defecto
         const d = cmTipos.find(t => t.tipo === s.tipo);
         if (d) {
           ['ptM2', 'rend', 'alambre', 'dias'].forEach(k => { if (s[k] != null) d[k] = s[k]; });
-          if (s.comp && s.comp.length) d.comp = s.comp;
-          else if (s.mat) d.comp = [{ mat: s.mat, frac: 1 }];
+          if (s.comp && s.comp.length > 1) d.comp = s.comp; // solo si la guardada es una composición real (multi-material)
         } else cmTipos.push(s.comp ? s : Object.assign({}, s, { comp: s.mat ? [{ mat: s.mat, frac: 1 }] : [] }));
       });
       if (data.cmElems)       cmElems = data.cmElems;
