@@ -3003,50 +3003,58 @@ function renderCimbraMadera() { syncLinkedCimbra(); renderCmMateriales(); render
 function renderBomZapatas() {
   const p = getP();
   const acp = (typeof getACP === 'function') ? getACP() : { desperdicio: 1 };
+  const desp = acp.desperdicio || 1;
   const tipoCimbra = t => t === 'aislada' ? 'Zapata aislada' : t === 'corrida' ? 'Zapata corrida' : 'Contratrabe/trabe cim.';
   try { syncLinkedAcero(); } catch (e) {}
 
   const bloques = zapatas.map(z => {
     const cc = calcZapata(z, p);
-    // Concreto
-    const concEstr = cc.volConcreto;      // zapata + dado
-    const concPlant = cc.volPlant;
-    const concDala = cc.volDala || 0;
-    // Acero por calibre (c/desperdicio) del elemento ligado
+    const N = z.tipo === 'contratrabe' ? 1 : (z.cant || 1); // nº de ejemplares idénticos
+    const filas = []; // {insumo, parte, unidad, total, dec}
+    const add = (insumo, parte, unidad, total, dec) => { if (total > 0) filas.push({ insumo, parte, unidad, total, dec: dec == null ? 3 : dec }); };
+
+    // Concreto (volúmenes ya son totales ×cant)
+    add('Concreto f\'c=250', 'zapata', 'm³', cc.volZap, 3);
+    add('Concreto f\'c=250', 'dado', 'm³', cc.volDado, 3);
+    add('Concreto dala', 'dala desplante', 'm³', cc.volDala || 0, 3);
+    add('Concreto f\'c=100', 'plantilla', 'm³', cc.volPlant, 3);
+
+    // Acero por (sub-elemento + calibre), c/desperdicio
     const ae = aceroElems.find(e => e.srcKey === 'zapatas:' + z.clave);
-    let aceroRows = '', aceroTot = 0;
     if (ae && !ae.prefab) {
       const c = calcElem(ae, acp);
-      const desp = acp.desperdicio || 1;
-      const cals = Object.entries(c.porCal).sort((a, b) => a[0].localeCompare(b[0]));
-      aceroRows = cals.map(([d, kg]) => { aceroTot += kg * desp; return `<span style="display:inline-block;min-width:120px">${d}: <b>${fmt(kg*desp,2)}</b> kg</span>`; }).join(' ');
-      if (!cals.length) aceroRows = '<span style="color:var(--color-text-tertiary)">sin armado</span>';
-    } else {
-      aceroRows = '<span style="color:var(--color-text-tertiary)">— (sin acero ligado)</span>';
+      const grp = {}; // 'sub|dia' -> kg
+      c.items.forEach(it => { const k = (it.subElem || 'elem') + '|' + it.dia; grp[k] = (grp[k] || 0) + it.pesoTotal * desp; });
+      Object.entries(grp).sort((a, b) => a[0].localeCompare(b[0])).forEach(([k, kg]) => {
+        const [sub, dia] = k.split('|');
+        add('Varilla ' + dia, sub, 'kg', kg, 2);
+      });
+      add('Alambre recocido', 'amarres', 'kg', c.alambreKg, 2);
     }
-    // Cimbra de madera (composición de materiales aplicada al área de contacto del elemento)
+
+    // Cimbra de madera (composición de materiales)
     const cm = calcCmElem({ clave: z.clave, tipo: tipoCimbra(z.tipo), srcKey: 'zapatas:' + z.clave, origen: 'zapatas' }, getCMP());
-    const areaCimbra = cm.area;
-    const maderaRows = cm.mats.map(x => `<span style="display:inline-block;min-width:170px">${x.nombre}: <b>${Math.ceil(x.ptAmort / (ptPorPieza(x.mat) || 1))}</b> pzas</span>`).join(' ');
-    const pzasMadera = cm.mats.reduce((s, x) => s + Math.ceil(x.ptAmort / (ptPorPieza(x.mat) || 1)), 0);
+    cm.mats.forEach(x => { const ppp = ptPorPieza(x.mat) || 1; add(x.nombre, 'cimbra', 'pza', Math.ceil(x.ptAmort / ppp), 0); });
+    add('Clavo', 'cimbra', 'kg', cm.clavoKg, 2);
+    add(getCMP().diesel ? 'Diésel (desmoldante)' : 'Desmoldante', 'cimbra', 'L', cm.desmoldL, 2);
+
+    const rows = filas.map(f => `
+      <tr>
+        <td>${f.insumo}</td>
+        <td style="color:var(--color-text-secondary)">${f.parte}</td>
+        <td class="num">${(f.total / N).toFixed(f.dec)}</td>
+        <td class="num computed">${f.dec === 0 ? fmtInt(f.total) : fmt(f.total, f.dec)}</td>
+        <td style="color:var(--color-text-tertiary)">${f.unidad}</td>
+      </tr>`).join('');
 
     return `
-      <div class="partida-group" style="margin-bottom:8px">
-        <div class="partida-group-title">${z.clave} — ${z.tipo} (×${z.cant})</div>
-        <div class="partida-row">
-          <div class="partida-desc"><b>Concreto</b> estructural (zapata + dado)${concDala>0?` · dala ${fmt(concDala,3)} m³`:''}${concPlant>0?` · plantilla ${fmt(concPlant,3)} m³`:''}</div>
-          <div class="partida-val">${fmt(concEstr,3)}</div><div class="partida-unit">m³</div>
-          <div class="partida-sub">total c/plantilla+dala: ${fmt(concEstr+concPlant+concDala,3)} m³</div>
-        </div>
-        <div class="partida-row">
-          <div class="partida-desc"><b>Acero</b> por calibre (c/desperdicio): ${aceroRows}</div>
-          <div class="partida-val">${fmt(aceroTot,2)}</div><div class="partida-unit">kg</div>
-          <div class="partida-sub"></div>
-        </div>
-        <div class="partida-row">
-          <div class="partida-desc"><b>Cimbra de madera</b> — ${areaCimbra.toFixed(2)} m² de contacto: ${maderaRows}</div>
-          <div class="partida-val">${fmtInt(pzasMadera)}</div><div class="partida-unit">pzas</div>
-          <div class="partida-sub">${fmt(cm.ptAmort,1)} PT amortizado</div>
+      <div class="partida-group" style="margin-bottom:10px">
+        <div class="partida-group-title">${z.clave} — ${z.tipo} ${N > 1 ? '(' + N + ' ejemplares)' : ''}</div>
+        <div class="table-wrap">
+          <table class="zap-table" style="min-width:620px">
+            <thead><tr><th>Insumo</th><th>Parte</th><th class="num">Unitario (×1)</th><th class="num">Total (×${N})</th><th>Unidad</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="5" style="color:var(--color-text-tertiary)">Sin insumos</td></tr>'}</tbody>
+          </table>
         </div>
       </div>`;
   }).join('');
