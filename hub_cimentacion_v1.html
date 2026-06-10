@@ -135,6 +135,7 @@
     <div class="nav-item" data-view="confinamiento"><span class="nav-icon">⬜</span><span>Confinamiento</span></div>
     <div class="nav-item" data-view="acero"><span class="nav-icon">▥</span><span>Acero</span></div>
     <div class="nav-item" data-view="cimbra"><span class="nav-icon">▦</span><span>Cimbra</span></div>
+    <div class="nav-item" data-view="cisterna"><span class="nav-icon">▣</span><span>Cisterna</span></div>
     <div class="nav-item" data-view="muros"><span class="nav-icon">◫</span><span>Muros</span></div>
     <div class="nav-item coming"><span class="nav-icon">⊞</span><span>Losas</span><span class="badge">pronto</span></div>
     <div class="nav-item coming"><span class="nav-icon">◈</span><span>Trazo</span><span class="badge">pronto</span></div>
@@ -700,6 +701,88 @@
       <p class="tip">Las NTC vigentes dejan el % de f'c y el tiempo de descimbrado a criterio del proyectista/DRO con verificación in situ. No se fija 70% como constante.</p>
       <div class="partidas" id="cm-descimbra"></div>
     </div><!-- /view-cimbra -->
+
+    <div id="view-cisterna" style="display:none;">
+      <div class="module-header">
+        <div class="module-title">Cisterna de concreto — cuantificación</div>
+        <div class="module-desc">Estima concreto, acero y cimbra de una cisterna con cárcamo: losas de fondo, muros, castillos, dalas y armado de muros (h/v · ext/int) y losa</div>
+      </div>
+
+      <div class="toolbar">
+        <button class="tool-btn primary" id="btn-save-cis">💾 Guardar cuantificación</button>
+        <label class="tool-btn" style="margin:0;">📂 Cargar cuantificación<input type="file" id="inp-load-cis" accept=".json" style="display:none;"></label>
+      </div>
+
+      <div class="section-label">Geometría de la cisterna (dimensiones interiores)</div>
+      <div class="params-grid" id="cis-params">
+        <div class="field"><label>Largo interior</label><input type="number" id="cis-L" value="4.00" step="0.05" min="0"><span class="unit-hint">m</span></div>
+        <div class="field"><label>Ancho interior</label><input type="number" id="cis-A" value="3.00" step="0.05" min="0"><span class="unit-hint">m</span></div>
+        <div class="field"><label>Profundidad</label><input type="number" id="cis-prof" value="2.50" step="0.05" min="0"><span class="unit-hint">m (altura de muro)</span></div>
+        <div class="field"><label>Espesor de muro</label><input type="number" id="cis-eMuro" value="0.20" step="0.01" min="0"><span class="unit-hint">m</span></div>
+        <div class="field"><label>Espesor losa fondo</label><input type="number" id="cis-eLosaF" value="0.20" step="0.01" min="0"><span class="unit-hint">m</span></div>
+        <div class="field"><label>Losa tapa</label><select id="cis-tapa"><option value="1" selected>Sí</option><option value="0">No</option></select><span class="unit-hint">incluir tapa</span></div>
+        <div class="field"><label>Espesor losa tapa</label><input type="number" id="cis-eTapa" value="0.12" step="0.01" min="0"><span class="unit-hint">m</span></div>
+        <div class="field"><label>Anclaje varilla</label><input type="number" id="cis-anclaje" value="0.50" step="0.05" min="0"><span class="unit-hint">m (verticales/castillos)</span></div>
+        <div class="field"><label>Recubrimiento</label><input type="number" id="cis-rec" value="0.04" step="0.005" min="0"><span class="unit-hint">m</span></div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Cárcamo de bombeo</div>
+      <div class="params-grid" id="cis-carc">
+        <div class="field"><label>Incluir cárcamo</label><select id="cis-carcOn"><option value="1" selected>Sí</option><option value="0">No</option></select><span class="unit-hint"></span></div>
+        <div class="field"><label>Largo cárcamo</label><input type="number" id="cis-Lc" value="0.80" step="0.05" min="0"><span class="unit-hint">m interior</span></div>
+        <div class="field"><label>Ancho cárcamo</label><input type="number" id="cis-Ac" value="0.80" step="0.05" min="0"><span class="unit-hint">m interior</span></div>
+        <div class="field"><label>Profundidad cárcamo</label><input type="number" id="cis-profC" value="0.60" step="0.05" min="0"><span class="unit-hint">m (extra bajo fondo)</span></div>
+        <div class="field"><label>Espesor muro cárcamo</label><input type="number" id="cis-eMuroC" value="0.15" step="0.01" min="0"><span class="unit-hint">m</span></div>
+        <div class="field"><label>Espesor losa cárcamo</label><input type="number" id="cis-eLosaC" value="0.15" step="0.01" min="0"><span class="unit-hint">m</span></div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Armado de muros (doble parrilla: exterior + interior)</div>
+      <p class="tip">Horizontal corre el perímetro (se reparte en la altura); vertical corre la altura+anclaje (se reparte en el perímetro). Captura calibre y separación de cada lecho.</p>
+      <div class="table-wrap" style="margin-top:10px;">
+        <table class="zap-table" style="min-width:560px;">
+          <thead><tr><th>Armado del muro</th><th>∅</th><th class="num">Separación (m)</th></tr></thead>
+          <tbody id="cis-muro-body"></tbody>
+        </table>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Armado de losa de fondo</div>
+      <div class="table-wrap" style="margin-top:10px;">
+        <table class="zap-table" style="min-width:560px;">
+          <thead><tr><th>Parrilla</th><th>∅</th><th class="num">Separación (m)</th><th class="ctr">Doble lecho</th></tr></thead>
+          <tbody id="cis-losa-body"></tbody>
+        </table>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Castillos y dalas de confinamiento</div>
+      <div class="params-grid" id="cis-cd">
+        <div class="field"><label>Castillos — cantidad</label><input type="number" id="cis-cn" value="4" step="1" min="0"><span class="unit-hint">piezas</span></div>
+        <div class="field"><label>Castillo — base a</label><input type="number" id="cis-ca" value="0.20" step="0.01" min="0"><span class="unit-hint">m</span></div>
+        <div class="field"><label>Castillo — peralte b</label><input type="number" id="cis-cb" value="0.20" step="0.01" min="0"><span class="unit-hint">m</span></div>
+        <div class="field"><label>Castillo — nº varillas</label><input type="number" id="cis-cnv" value="4" step="1" min="0"><span class="unit-hint">longitudinales</span></div>
+        <div class="field"><label>Castillo — ∅ long.</label><select id="cis-cdia" class="cal-sel"></select><span class="unit-hint"></span></div>
+        <div class="field"><label>Castillo — ∅ estribo</label><select id="cis-cest" class="cal-sel"></select><span class="unit-hint"></span></div>
+        <div class="field"><label>Castillo — sep. estribo</label><input type="number" id="cis-csep" value="0.20" step="0.01" min="0"><span class="unit-hint">m</span></div>
+        <div class="field"><label>Dalas — cantidad</label><input type="number" id="cis-dn" value="2" step="1" min="0"><span class="unit-hint">coronas (perímetro)</span></div>
+        <div class="field"><label>Dala — base a</label><input type="number" id="cis-da" value="0.20" step="0.01" min="0"><span class="unit-hint">m</span></div>
+        <div class="field"><label>Dala — peralte b</label><input type="number" id="cis-db" value="0.20" step="0.01" min="0"><span class="unit-hint">m</span></div>
+        <div class="field"><label>Dala — nº varillas</label><input type="number" id="cis-dnv" value="4" step="1" min="0"><span class="unit-hint">longitudinales</span></div>
+        <div class="field"><label>Dala — ∅ long.</label><select id="cis-ddia" class="cal-sel"></select><span class="unit-hint"></span></div>
+        <div class="field"><label>Dala — ∅ estribo</label><select id="cis-dest" class="cal-sel"></select><span class="unit-hint"></span></div>
+        <div class="field"><label>Dala — sep. estribo</label><input type="number" id="cis-dsep" value="0.20" step="0.01" min="0"><span class="unit-hint">m</span></div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Totales de la cisterna</div>
+      <div class="totals-row" id="cis-totals"></div>
+
+      <div class="divider"></div>
+      <div class="section-label">Cuantificación por elemento</div>
+      <div class="partidas" id="cis-partidas"></div>
+    </div><!-- /view-cisterna -->
   </div>
 </div>
 
@@ -3064,8 +3147,170 @@ function renderBomZapatas() {
   document.getElementById('bom-label').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// ─── Cisterna de concreto ───────────────────────────────────────────────────────
+let cisterna = {
+  muro: [
+    { nombre: 'Horizontal exterior', sentido: 'h', dia: '#4', sep: 0.20 },
+    { nombre: 'Horizontal interior', sentido: 'h', dia: '#4', sep: 0.20 },
+    { nombre: 'Vertical exterior',   sentido: 'v', dia: '#4', sep: 0.20 },
+    { nombre: 'Vertical interior',   sentido: 'v', dia: '#4', sep: 0.20 },
+  ],
+  losa: [
+    { nombre: 'Parrilla X (corre el largo)', sentido: 'x', dia: '#4', sep: 0.15, doble: true },
+    { nombre: 'Parrilla Y (corre el ancho)', sentido: 'y', dia: '#4', sep: 0.15, doble: true },
+  ],
+};
+function cisCalOpts(sel) { return aceroCalibres.map(c => `<option ${c.dia===sel?'selected':''}>${c.dia}</option>`).join(''); }
+function cisKgm(dia) { const c = calibrePorDia(dia); return c ? c.kgm : 0; }
+
+function getCisterna() {
+  const v = id => parseFloat(document.getElementById(id).value) || 0;
+  const s = id => document.getElementById(id).value;
+  return {
+    L: v('cis-L'), A: v('cis-A'), prof: v('cis-prof'), eMuro: v('cis-eMuro'), eLosaF: v('cis-eLosaF'),
+    tapa: s('cis-tapa') === '1', eTapa: v('cis-eTapa'), anclaje: v('cis-anclaje'), rec: v('cis-rec'),
+    carcOn: s('cis-carcOn') === '1', Lc: v('cis-Lc'), Ac: v('cis-Ac'), profC: v('cis-profC'), eMuroC: v('cis-eMuroC'), eLosaC: v('cis-eLosaC'),
+    castillo: { n: v('cis-cn'), a: v('cis-ca'), b: v('cis-cb'), nv: v('cis-cnv'), dia: s('cis-cdia'), est: s('cis-cest'), sep: v('cis-csep') },
+    dala: { n: v('cis-dn'), a: v('cis-da'), b: v('cis-db'), nv: v('cis-dnv'), dia: s('cis-ddia'), est: s('cis-dest'), sep: v('cis-dsep') },
+    muro: cisterna.muro, losa: cisterna.losa,
+  };
+}
+
+function calcCisterna(g, desp) {
+  const Lext = g.L + 2 * g.eMuro, Aext = g.A + 2 * g.eMuro;
+  const areaFondo = Lext * Aext;
+  const perim = 2 * (g.L + g.A + 2 * g.eMuro); // perímetro de eje de muro
+
+  const conc = {};
+  conc['Losa de fondo cisterna'] = areaFondo * g.eLosaF;
+  conc['Muros cisterna'] = (Lext * Aext - g.L * g.A) * g.prof;
+  if (g.tapa) conc['Losa tapa'] = areaFondo * g.eTapa;
+  if (g.carcOn) {
+    const LcE = g.Lc + 2 * g.eMuroC, AcE = g.Ac + 2 * g.eMuroC;
+    conc['Muros cárcamo'] = (LcE * AcE - g.Lc * g.Ac) * g.profC;
+    conc['Losa de fondo cárcamo'] = LcE * AcE * g.eLosaC;
+  }
+  conc['Castillos'] = g.castillo.n * g.castillo.a * g.castillo.b * g.prof;
+  conc['Dalas'] = g.dala.n * g.dala.a * g.dala.b * perim;
+
+  const acero = []; // {elem, dia, kg (c/desperdicio)}
+  const addA = (elem, dia, kg) => { if (kg > 0) acero.push({ elem, dia, kg: kg * desp }); };
+  // Muros (doble parrilla)
+  g.muro.forEach(m => {
+    if (m.sentido === 'h') { const rings = Math.ceil(g.prof / m.sep) + 1; addA('Muro — ' + m.nombre, m.dia, perim * rings * cisKgm(m.dia)); }
+    else { const n = Math.ceil(perim / m.sep) + 1; addA('Muro — ' + m.nombre, m.dia, (g.prof + g.anclaje) * n * cisKgm(m.dia)); }
+  });
+  // Losa de fondo
+  g.losa.forEach(l => {
+    const mult = l.doble ? 2 : 1;
+    if (l.sentido === 'x') { const n = Math.ceil(Aext / l.sep) + 1; addA('Losa fondo — ' + l.nombre, l.dia, Lext * n * mult * cisKgm(l.dia)); }
+    else { const n = Math.ceil(Lext / l.sep) + 1; addA('Losa fondo — ' + l.nombre, l.dia, Aext * n * mult * cisKgm(l.dia)); }
+  });
+  // Castillos
+  { const c = g.castillo;
+    addA('Castillos — longitudinal', c.dia, c.nv * (g.prof + g.anclaje) * c.n * cisKgm(c.dia));
+    const nEst = Math.ceil(g.prof / c.sep) + 1, largoEst = Math.max(0, 2 * ((c.a - 2 * g.rec) + (c.b - 2 * g.rec)));
+    addA('Castillos — estribo', c.est, nEst * c.n * largoEst * cisKgm(c.est)); }
+  // Dalas
+  { const d = g.dala;
+    addA('Dalas — longitudinal', d.dia, d.nv * perim * d.n * cisKgm(d.dia));
+    const nEst = Math.ceil(perim / d.sep) + 1, largoEst = Math.max(0, 2 * ((d.a - 2 * g.rec) + (d.b - 2 * g.rec)));
+    addA('Dalas — estribo', d.est, nEst * d.n * largoEst * cisKgm(d.est)); }
+
+  const porCalibre = {};
+  let totalAcero = 0;
+  acero.forEach(a => { porCalibre[a.dia] = (porCalibre[a.dia] || 0) + a.kg; totalAcero += a.kg; });
+  const totalConc = Object.values(conc).reduce((s, v) => s + v, 0);
+  const cimbra = 2 * perim * g.prof
+    + (g.tapa ? areaFondo : 0)
+    + (g.carcOn ? 2 * (2 * (g.Lc + g.Ac + 2 * g.eMuroC)) * g.profC : 0);
+
+  return { conc, acero, porCalibre, totalConc, totalAcero, cimbra, perim, areaFondo, Lext, Aext };
+}
+
+function renderCisternaArmado() {
+  const mb = document.getElementById('cis-muro-body');
+  mb.innerHTML = cisterna.muro.map((m, i) => `
+    <tr>
+      <td>${m.nombre}</td>
+      <td><select class="inp-sm" style="width:64px" data-cm="${i}" data-cf="dia">${cisCalOpts(m.dia)}</select></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.01" min="0.01" data-cm="${i}" data-cf="sep" value="${m.sep}"></td>
+    </tr>`).join('');
+  mb.querySelectorAll('[data-cm]').forEach(el => el.addEventListener('change', () => {
+    const i = parseInt(el.dataset.cm), f = el.dataset.cf;
+    cisterna.muro[i][f] = f === 'dia' ? el.value : (parseFloat(el.value) || 0);
+    renderCisternaResults();
+  }));
+  const lb = document.getElementById('cis-losa-body');
+  lb.innerHTML = cisterna.losa.map((l, i) => `
+    <tr>
+      <td>${l.nombre}</td>
+      <td><select class="inp-sm" style="width:64px" data-cl="${i}" data-cf="dia">${cisCalOpts(l.dia)}</select></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.01" min="0.01" data-cl="${i}" data-cf="sep" value="${l.sep}"></td>
+      <td class="ctr"><input type="checkbox" data-cl="${i}" data-cf="doble" ${l.doble?'checked':''}></td>
+    </tr>`).join('');
+  lb.querySelectorAll('[data-cl]').forEach(el => el.addEventListener('change', () => {
+    const i = parseInt(el.dataset.cl), f = el.dataset.cf;
+    cisterna.losa[i][f] = f === 'doble' ? el.checked : (f === 'dia' ? el.value : (parseFloat(el.value) || 0));
+    renderCisternaResults();
+  }));
+  // selects de calibre de castillos/dalas
+  [['cis-cdia', cisterna._cdia || '#4'], ['cis-cest', cisterna._cest || '#3'], ['cis-ddia', cisterna._ddia || '#4'], ['cis-dest', cisterna._dest || '#3']]
+    .forEach(([id, def]) => { const s = document.getElementById(id); if (s && !s.options.length) s.innerHTML = cisCalOpts(def); });
+}
+
+function renderCisterna() { renderCisternaArmado(); renderCisternaResults(); }
+
+function renderCisternaResults() {
+  const g = getCisterna();
+  const desp = (typeof getACP === 'function') ? (getACP().desperdicio || 1) : 1.07;
+  const r = calcCisterna(g, desp);
+  document.getElementById('cis-totals').innerHTML = `
+    <div class="total-card accent-green"><div class="total-label">Concreto total</div><div class="total-value">${fmt(r.totalConc,3)}<span class="total-unit">m³</span></div></div>
+    <div class="total-card accent-blue"><div class="total-label">Acero total (c/desp.)</div><div class="total-value">${fmt(r.totalAcero,2)}<span class="total-unit">kg</span></div></div>
+    <div class="total-card"><div class="total-label">Acero</div><div class="total-value">${fmt(r.totalAcero/1000,3)}<span class="total-unit">t</span></div></div>
+    <div class="total-card accent-amber"><div class="total-label">Cimbra</div><div class="total-value">${fmt(r.cimbra,2)}<span class="total-unit">m²</span></div></div>
+  `;
+  const concRows = Object.entries(r.conc).map(([k, v]) => `
+    <div class="partida-row"><div class="partida-desc">${k}</div><div class="partida-val ${v===0?'zero':''}">${fmt(v,3)}</div><div class="partida-unit">m³</div><div class="partida-sub"></div></div>`).join('');
+  const aceroRows = r.acero.map(a => `
+    <div class="partida-row"><div class="partida-desc">${a.elem} — varilla ${a.dia}</div><div class="partida-val">${fmt(a.kg,2)}</div><div class="partida-unit">kg</div><div class="partida-sub"></div></div>`).join('');
+  const calRows = Object.entries(r.porCalibre).sort((a, b) => a[0].localeCompare(b[0])).map(([d, kg]) => `
+    <div class="partida-row"><div class="partida-desc">Varilla ${d}</div><div class="partida-val">${fmt(kg,2)}</div><div class="partida-unit">kg</div><div class="partida-sub"></div></div>`).join('');
+  document.getElementById('cis-partidas').innerHTML = `
+    <div class="partida-group"><div class="partida-group-title">Concreto por elemento</div>${concRows}
+      <div class="partida-row highlight"><div class="partida-desc">Concreto total</div><div class="partida-val">${fmt(r.totalConc,3)}</div><div class="partida-unit">m³</div><div class="partida-sub"></div></div></div>
+    <div class="partida-group"><div class="partida-group-title">Acero por elemento (c/desperdicio)</div>${aceroRows || '<div class="partida-row"><div class="partida-desc">Sin acero</div></div>'}</div>
+    <div class="partida-group"><div class="partida-group-title">Acero — resumen por calibre</div>${calRows}
+      <div class="partida-row highlight"><div class="partida-desc">Acero total</div><div class="partida-val">${fmt(r.totalAcero,2)}</div><div class="partida-unit">kg</div><div class="partida-sub">${fmt(r.totalAcero/1000,3)} t</div></div></div>
+    <div class="partida-group"><div class="partida-group-title">Cimbra</div>
+      <div class="partida-row highlight"><div class="partida-desc">Cimbra de muros (2 caras) + tapa + cárcamo</div><div class="partida-val">${fmt(r.cimbra,2)}</div><div class="partida-unit">m²</div><div class="partida-sub"></div></div></div>
+  `;
+}
+
+function setCisternaUI(c) {
+  if (!c) return;
+  const set = (id, v) => { const e = document.getElementById(id); if (e && v != null) e.value = v; };
+  set('cis-L', c.L); set('cis-A', c.A); set('cis-prof', c.prof); set('cis-eMuro', c.eMuro); set('cis-eLosaF', c.eLosaF);
+  if (c.tapa != null) document.getElementById('cis-tapa').value = c.tapa ? '1' : '0';
+  set('cis-eTapa', c.eTapa); set('cis-anclaje', c.anclaje); set('cis-rec', c.rec);
+  if (c.carcOn != null) document.getElementById('cis-carcOn').value = c.carcOn ? '1' : '0';
+  set('cis-Lc', c.Lc); set('cis-Ac', c.Ac); set('cis-profC', c.profC); set('cis-eMuroC', c.eMuroC); set('cis-eLosaC', c.eLosaC);
+  if (c.castillo) { set('cis-cn', c.castillo.n); set('cis-ca', c.castillo.a); set('cis-cb', c.castillo.b); set('cis-cnv', c.castillo.nv); set('cis-csep', c.castillo.sep); cisterna._cdia = c.castillo.dia; cisterna._cest = c.castillo.est; }
+  if (c.dala) { set('cis-dn', c.dala.n); set('cis-da', c.dala.a); set('cis-db', c.dala.b); set('cis-dnv', c.dala.nv); set('cis-dsep', c.dala.sep); cisterna._ddia = c.dala.dia; cisterna._dest = c.dala.est; }
+  if (c.muro) cisterna.muro = c.muro;
+  if (c.losa) cisterna.losa = c.losa;
+  // re-render selects con valores cargados
+  document.getElementById('cis-muro-body').innerHTML = '';
+  document.getElementById('cis-losa-body').innerHTML = '';
+  ['cis-cdia', 'cis-cest', 'cis-ddia', 'cis-dest'].forEach(id => { const s = document.getElementById(id); if (s) s.innerHTML = ''; });
+  renderCisternaArmado();
+  if (c.castillo) { document.getElementById('cis-cdia').value = c.castillo.dia; document.getElementById('cis-cest').value = c.castillo.est; }
+  if (c.dala) { document.getElementById('cis-ddia').value = c.dala.dia; document.getElementById('cis-dest').value = c.dala.est; }
+}
+
 // ─── Navegación entre módulos ──────────────────────────────────────────────────
-const VIEWS = ['zapatas', 'muros', 'confinamiento', 'acero', 'cimbra'];
+const VIEWS = ['zapatas', 'muros', 'confinamiento', 'acero', 'cimbra', 'cisterna'];
 function showView(v) {
   VIEWS.forEach(name => {
     const el = document.getElementById('view-' + name);
@@ -3079,6 +3324,9 @@ function showView(v) {
   }
   if (v === 'cimbra') {
     renderCimbraMadera();
+  }
+  if (v === 'cisterna') {
+    renderCisterna();
   }
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(n =>
@@ -3146,6 +3394,13 @@ document.querySelectorAll('#cm-params input, #cm-params select').forEach(el => {
 document.getElementById('btn-save-cb').addEventListener('click', saveAll);
 document.getElementById('inp-load-cb').addEventListener('change', e => { loadAll(e.target.files[0]); e.target.value = ''; });
 
+// ── Cisterna ──
+document.querySelectorAll('#cis-params input, #cis-params select, #cis-carc input, #cis-carc select, #cis-cd input, #cis-cd select').forEach(el => {
+  el.addEventListener('input', renderCisternaResults);
+});
+document.getElementById('btn-save-cis').addEventListener('click', saveAll);
+document.getElementById('inp-load-cis').addEventListener('change', e => { loadAll(e.target.files[0]); e.target.value = ''; });
+
 document.getElementById('add-rel-btn').addEventListener('click', () => {
   rellenos.push({ material: 'otro', desc: 'Relleno con material compactado', espesor: 0.20, esResto: false });
   renderRellenos();
@@ -3201,7 +3456,8 @@ function saveAll() {
                  murosParams: getMP(), muros,
                  confinaParams: getCP(), confina,
                  aceroParams: getACP(), aceroCalibres, aceroElems,
-                 cmParams: getCMP(), cmMateriales, cmTipos, cmElems };
+                 cmParams: getCMP(), cmMateriales, cmTipos, cmElems,
+                 cisterna: getCisterna() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -3236,6 +3492,7 @@ function loadAll(file) {
       });
       if (data.cmElems)       cmElems = data.cmElems;
       if (data.cmParams)      setCmUI(data.cmParams);
+      if (data.cisterna)      setCisternaUI(data.cisterna);
       renderTable();
       renderRellenos();
       renderResults();
@@ -3249,6 +3506,7 @@ function loadAll(file) {
       renderArmado();
       renderAceroResults();
       renderCimbraMadera();
+      renderCisterna();
     } catch {
       alert('El archivo no es un JSON válido.');
     }
@@ -3292,5 +3550,6 @@ renderAceroElems();
 renderArmado();
 renderAceroResults();
 renderCimbraMadera();
+renderCisterna();
 ensureXLSX().catch(() => {}); // precarga SheetJS para que la exportación sea instantánea
 </script>
