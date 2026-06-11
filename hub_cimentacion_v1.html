@@ -3250,11 +3250,19 @@ function calcCisterna(g, desp) {
   let totalAcero = 0;
   acero.forEach(a => { porCalibre[a.dia] = (porCalibre[a.dia] || 0) + a.kg; totalAcero += a.kg; });
   const totalConc = Object.values(conc).reduce((s, v) => s + v, 0);
-  const cimbra = 2 * perim * g.prof
-    + (g.tapa ? areaFondo : 0)
-    + (g.carcOn ? 2 * (2 * (g.Lc + g.Ac + 2 * g.eMuroC)) * g.profC : 0);
+  // Cimbra: área de contacto por grupo (mismas fórmulas del módulo de cimbra: muro/losa/castillo/dala)
+  const cimbraGrupos = {};
+  let aMuros = 2 * perim * g.prof;
+  if (g.carcOn) aMuros += 2 * (2 * (g.Lc + g.Ac + 2 * g.eMuroC)) * g.profC;
+  cimbraGrupos['Muros'] = aMuros;
+  let aLosas = 0;
+  if (g.tapa) aLosas += areaFondo + 2 * (Lext + Aext) * g.eTapa; // fondo (molde) + cantos
+  cimbraGrupos['Losas'] = aLosas;
+  cimbraGrupos['Castillos'] = 2 * g.prof * g.castillo.a * g.castillo.n;       // 2 caras × altura × base
+  cimbraGrupos['Dalas'] = 2 * perim * g.dala.b * g.dala.n;                    // 2 caras × perímetro × peralte
+  const cimbra = Object.values(cimbraGrupos).reduce((s, v) => s + v, 0);
 
-  return { conc, acero, porCalibre, totalConc, totalAcero, cimbra, perim, areaFondo, Lext, Aext };
+  return { conc, acero, porCalibre, totalConc, totalAcero, cimbra, cimbraGrupos, perim, areaFondo, Lext, Aext };
 }
 
 function renderCisternaMuro(bodyId, arrName) {
@@ -3319,14 +3327,39 @@ function renderCisternaResults() {
     <div class="partida-row"><div class="partida-desc">${a.elem} — varilla ${a.dia}</div><div class="partida-val">${fmt(a.kg,2)}</div><div class="partida-unit">kg</div><div class="partida-sub"></div></div>`).join('');
   const calRows = Object.entries(r.porCalibre).sort((a, b) => a[0].localeCompare(b[0])).map(([d, kg]) => `
     <div class="partida-row"><div class="partida-desc">Varilla ${d}</div><div class="partida-val">${fmt(kg,2)}</div><div class="partida-unit">kg</div><div class="partida-sub"></div></div>`).join('');
+  // Cimbra: desglose de materiales por grupo reusando la lógica del módulo de cimbra
+  const cimMap = { 'Muros': 'Muro de concreto', 'Losas': 'Losa maciza', 'Castillos': 'Castillo', 'Dalas': 'Dala/cadena' };
+  let cmPrm; try { cmPrm = getCMP(); } catch (e) { cmPrm = { clavo: 0.08, clavoFd: 1.15, desmold: 0.05, diesel: false, sepMadrina: 1.7, sepPuntal: 1.25, aparente: 0.635 }; }
+  const cimGrupos = [];      // {grupo, area, mats:[{nombre,pzas}], clavoKg, alambreKg, desmoldL}
+  const cimMatTot = {};      // nombre -> piezas
+  let cimClavo = 0, cimAlambre = 0, cimDesmold = 0;
+  Object.entries(r.cimbraGrupos).forEach(([grupo, area]) => {
+    if (area <= 0) return;
+    const c = calcCmElem({ tipo: cimMap[grupo], m2: area, cant: 1 }, cmPrm);
+    const mats = c.mats.filter(x => x.ptBruto > 0).map(x => ({ nombre: x.nombre, pzas: Math.ceil(x.ptBruto / (ptPorPieza(x.mat) || 1)) }));
+    mats.forEach(m => cimMatTot[m.nombre] = (cimMatTot[m.nombre] || 0) + m.pzas);
+    cimClavo += c.clavoKg; cimAlambre += c.alambreKg; cimDesmold += c.desmoldL;
+    cimGrupos.push({ grupo, area, mats, clavoKg: c.clavoKg, alambreKg: c.alambreKg, desmoldL: c.desmoldL });
+  });
+  const cimGruposHtml = cimGrupos.map(gr => {
+    const matRows = gr.mats.map(m => `
+      <div class="partida-row"><div class="partida-desc" style="padding-left:18px;">${m.nombre}</div><div class="partida-val">${fmtInt(m.pzas)}</div><div class="partida-unit">pza</div><div class="partida-sub"></div></div>`).join('');
+    const extras = `
+      <div class="partida-row"><div class="partida-desc" style="padding-left:18px;color:var(--color-text-tertiary)">Clavo · Alambre · Desmoldante</div><div class="partida-val">${fmt(gr.clavoKg,1)} · ${fmt(gr.alambreKg,1)} · ${fmt(gr.desmoldL,1)}</div><div class="partida-unit">kg·kg·L</div><div class="partida-sub"></div></div>`;
+    return `<div class="partida-row" style="background:var(--color-bg-subtle,#f3f4f6);"><div class="partida-desc"><b>${gr.grupo}</b> — cimbra</div><div class="partida-val">${fmt(gr.area,2)}</div><div class="partida-unit">m²</div><div class="partida-sub"></div></div>${matRows}${extras}`;
+  }).join('');
+  const cimTotRows = Object.entries(cimMatTot).sort((a, b) => b[1] - a[1]).map(([n, p]) => `
+    <div class="partida-row"><div class="partida-desc">${n}</div><div class="partida-val">${fmtInt(p)}</div><div class="partida-unit">pza</div><div class="partida-sub"></div></div>`).join('');
   document.getElementById('cis-partidas').innerHTML = `
     <div class="partida-group"><div class="partida-group-title">Concreto por elemento</div>${concRows}
       <div class="partida-row highlight"><div class="partida-desc">Concreto total</div><div class="partida-val">${fmt(r.totalConc,3)}</div><div class="partida-unit">m³</div><div class="partida-sub"></div></div></div>
     <div class="partida-group"><div class="partida-group-title">Acero por elemento (c/desperdicio)</div>${aceroRows || '<div class="partida-row"><div class="partida-desc">Sin acero</div></div>'}</div>
     <div class="partida-group"><div class="partida-group-title">Acero — resumen por calibre</div>${calRows}
       <div class="partida-row highlight"><div class="partida-desc">Acero total</div><div class="partida-val">${fmt(r.totalAcero,2)}</div><div class="partida-unit">kg</div><div class="partida-sub">${fmt(r.totalAcero/1000,3)} t</div></div></div>
-    <div class="partida-group"><div class="partida-group-title">Cimbra</div>
-      <div class="partida-row highlight"><div class="partida-desc">Cimbra de muros (2 caras) + tapa + cárcamo</div><div class="partida-val">${fmt(r.cimbra,2)}</div><div class="partida-unit">m²</div><div class="partida-sub"></div></div></div>
+    <div class="partida-group"><div class="partida-group-title">Cimbra — materiales por elemento (muros · losas · castillos · dalas)</div>${cimGruposHtml || '<div class="partida-row"><div class="partida-desc">Sin cimbra</div></div>'}</div>
+    <div class="partida-group"><div class="partida-group-title">Cimbra — resumen de materiales</div>${cimTotRows}
+      <div class="partida-row"><div class="partida-desc">Clavo · Alambre recocido · Desmoldante</div><div class="partida-val">${fmt(cimClavo,1)} · ${fmt(cimAlambre,1)} · ${fmt(cimDesmold,1)}</div><div class="partida-unit">kg·kg·L</div><div class="partida-sub"></div></div>
+      <div class="partida-row highlight"><div class="partida-desc">Cimbra total (área de contacto)</div><div class="partida-val">${fmt(r.cimbra,2)}</div><div class="partida-unit">m²</div><div class="partida-sub"></div></div></div>
   `;
 }
 
