@@ -739,11 +739,21 @@
 
       <div class="divider"></div>
       <div class="section-label">Armado de muros (doble parrilla: exterior + interior)</div>
-      <p class="tip">Horizontal corre el perímetro (se reparte en la altura); vertical corre la altura+anclaje (se reparte en el perímetro). Captura calibre y separación de cada lecho.</p>
-      <div class="table-wrap" style="margin-top:10px;">
-        <table class="zap-table" style="min-width:560px;">
-          <thead><tr><th>Armado del muro</th><th>∅</th><th class="num">Separación (m)</th></tr></thead>
-          <tbody id="cis-muro-body"></tbody>
+      <p class="tip">El muro largo y el muro corto pueden llevar armados distintos. Horizontal corre el largo del muro (se reparte en la altura); vertical corre la altura+anclaje (se reparte en el largo). Cada lecho admite <b>bastones</b> con su propio calibre, separación y longitud.</p>
+
+      <div class="section-label" style="margin-top:8px;font-size:13px;">Muro largo (corre el lado «{L}») — 2 muros</div>
+      <div class="table-wrap" style="margin-top:6px;">
+        <table class="zap-table" style="min-width:760px;">
+          <thead><tr><th>Armado</th><th>∅</th><th class="num">Sep (m)</th><th class="ctr">Bastón</th><th>∅ bast.</th><th class="num">Sep bast. (m)</th><th class="num">Largo bast. (m)</th></tr></thead>
+          <tbody id="cis-muroL-body"></tbody>
+        </table>
+      </div>
+
+      <div class="section-label" style="margin-top:12px;font-size:13px;">Muro corto (corre el lado «{A}») — 2 muros</div>
+      <div class="table-wrap" style="margin-top:6px;">
+        <table class="zap-table" style="min-width:760px;">
+          <thead><tr><th>Armado</th><th>∅</th><th class="num">Sep (m)</th><th class="ctr">Bastón</th><th>∅ bast.</th><th class="num">Sep bast. (m)</th><th class="num">Largo bast. (m)</th></tr></thead>
+          <tbody id="cis-muroC-body"></tbody>
         </table>
       </div>
 
@@ -3148,12 +3158,21 @@ function renderBomZapatas() {
 }
 
 // ─── Cisterna de concreto ───────────────────────────────────────────────────────
+function cisMuroDef(nombre, sentido, dia, sep, bastOn, bastSep, bastLargo, bastDia) {
+  return { nombre, sentido, dia, sep, bastOn, bastDia: bastDia || dia, bastSep, bastLargo };
+}
 let cisterna = {
-  muro: [
-    { nombre: 'Horizontal exterior', sentido: 'h', dia: '#4', sep: 0.20 },
-    { nombre: 'Horizontal interior', sentido: 'h', dia: '#4', sep: 0.20 },
-    { nombre: 'Vertical exterior',   sentido: 'v', dia: '#4', sep: 0.20 },
-    { nombre: 'Vertical interior',   sentido: 'v', dia: '#4', sep: 0.20 },
+  muroLargo: [
+    cisMuroDef('Horizontal exterior', 'h', '#4', 0.30, true,  0.33, 1.1),
+    cisMuroDef('Horizontal interior', 'h', '#3', 0.25, false, 0.33, 1.1),
+    cisMuroDef('Vertical exterior',   'v', '#4', 0.30, true,  0.16, 1.1),
+    cisMuroDef('Vertical interior',   'v', '#4', 0.20, true,  0.50, 1.1),
+  ],
+  muroCorto: [
+    cisMuroDef('Horizontal exterior', 'h', '#4', 0.30, true,  0.50, 1.1),
+    cisMuroDef('Horizontal interior', 'h', '#4', 0.30, false, 0.33, 1.1),
+    cisMuroDef('Vertical exterior',   'v', '#4', 0.30, true,  0.20, 1.1),
+    cisMuroDef('Vertical interior',   'v', '#4', 0.25, false, 0.20, 0.8, '#3'),
   ],
   losa: [
     { nombre: 'Parrilla X (corre el largo)', sentido: 'x', dia: '#4', sep: 0.15, doble: true },
@@ -3172,7 +3191,7 @@ function getCisterna() {
     carcOn: s('cis-carcOn') === '1', Lc: v('cis-Lc'), Ac: v('cis-Ac'), profC: v('cis-profC'), eMuroC: v('cis-eMuroC'), eLosaC: v('cis-eLosaC'),
     castillo: { n: v('cis-cn'), a: v('cis-ca'), b: v('cis-cb'), nv: v('cis-cnv'), dia: s('cis-cdia'), est: s('cis-cest'), sep: v('cis-csep') },
     dala: { n: v('cis-dn'), a: v('cis-da'), b: v('cis-db'), nv: v('cis-dnv'), dia: s('cis-ddia'), est: s('cis-dest'), sep: v('cis-dsep') },
-    muro: cisterna.muro, losa: cisterna.losa,
+    muroLargo: cisterna.muroLargo, muroCorto: cisterna.muroCorto, losa: cisterna.losa,
   };
 }
 
@@ -3195,11 +3214,21 @@ function calcCisterna(g, desp) {
 
   const acero = []; // {elem, dia, kg (c/desperdicio)}
   const addA = (elem, dia, kg) => { if (kg > 0) acero.push({ elem, dia, kg: kg * desp }); };
-  // Muros (doble parrilla)
-  g.muro.forEach(m => {
-    if (m.sentido === 'h') { const rings = Math.ceil(g.prof / m.sep) + 1; addA('Muro — ' + m.nombre, m.dia, perim * rings * cisKgm(m.dia)); }
-    else { const n = Math.ceil(perim / m.sep) + 1; addA('Muro — ' + m.nombre, m.dia, (g.prof + g.anclaje) * n * cisKgm(m.dia)); }
-  });
+  // Muros: largo (corre Lext) y corto (corre A), 2 muros cada uno, con bastones
+  const muroAcero = (lines, wallLen, nWalls, prefix) => {
+    (lines || []).forEach(m => {
+      let n, largo;
+      if (m.sentido === 'h') { n = Math.ceil(g.prof / m.sep) + 1; largo = wallLen; }
+      else { n = Math.ceil(wallLen / m.sep) + 1; largo = g.prof + g.anclaje; }
+      addA(prefix + ' — ' + m.nombre, m.dia, n * nWalls * largo * cisKgm(m.dia));
+      if (m.bastOn && m.bastSep > 0 && m.bastLargo > 0) {
+        const nb = (m.sentido === 'h' ? Math.ceil(g.prof / m.bastSep) : Math.ceil(wallLen / m.bastSep)) + 1;
+        addA(prefix + ' — ' + m.nombre + ' (bastones)', m.bastDia, nb * nWalls * m.bastLargo * cisKgm(m.bastDia));
+      }
+    });
+  };
+  muroAcero(g.muroLargo, Lext, 2, 'Muro largo');
+  muroAcero(g.muroCorto, g.A, 2, 'Muro corto');
   // Losa de fondo
   g.losa.forEach(l => {
     const mult = l.doble ? 2 : 1;
@@ -3228,19 +3257,32 @@ function calcCisterna(g, desp) {
   return { conc, acero, porCalibre, totalConc, totalAcero, cimbra, perim, areaFondo, Lext, Aext };
 }
 
-function renderCisternaArmado() {
-  const mb = document.getElementById('cis-muro-body');
-  mb.innerHTML = cisterna.muro.map((m, i) => `
+function renderCisternaMuro(bodyId, arrName) {
+  const arr = cisterna[arrName];
+  const mb = document.getElementById(bodyId);
+  const dis = on => on ? '' : 'disabled';
+  mb.innerHTML = arr.map((m, i) => `
     <tr>
       <td>${m.nombre}</td>
-      <td><select class="inp-sm" style="width:64px" data-cm="${i}" data-cf="dia">${cisCalOpts(m.dia)}</select></td>
+      <td><select class="inp-sm" style="width:60px" data-cm="${i}" data-cf="dia">${cisCalOpts(m.dia)}</select></td>
       <td class="num"><input class="inp-sm inp-dim" type="number" step="0.01" min="0.01" data-cm="${i}" data-cf="sep" value="${m.sep}"></td>
+      <td class="ctr"><input type="checkbox" data-cm="${i}" data-cf="bastOn" ${m.bastOn?'checked':''}></td>
+      <td><select class="inp-sm" style="width:60px" data-cm="${i}" data-cf="bastDia" ${dis(m.bastOn)}>${cisCalOpts(m.bastDia)}</select></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.01" min="0.01" data-cm="${i}" data-cf="bastSep" value="${m.bastSep}" ${dis(m.bastOn)}></td>
+      <td class="num"><input class="inp-sm inp-dim" type="number" step="0.05" min="0" data-cm="${i}" data-cf="bastLargo" value="${m.bastLargo}" ${dis(m.bastOn)}></td>
     </tr>`).join('');
   mb.querySelectorAll('[data-cm]').forEach(el => el.addEventListener('change', () => {
     const i = parseInt(el.dataset.cm), f = el.dataset.cf;
-    cisterna.muro[i][f] = f === 'dia' ? el.value : (parseFloat(el.value) || 0);
+    if (f === 'bastOn') arr[i][f] = el.checked;
+    else if (f === 'dia' || f === 'bastDia') arr[i][f] = el.value;
+    else arr[i][f] = parseFloat(el.value) || 0;
+    if (f === 'bastOn') renderCisternaMuro(bodyId, arrName);
     renderCisternaResults();
   }));
+}
+function renderCisternaArmado() {
+  renderCisternaMuro('cis-muroL-body', 'muroLargo');
+  renderCisternaMuro('cis-muroC-body', 'muroCorto');
   const lb = document.getElementById('cis-losa-body');
   lb.innerHTML = cisterna.losa.map((l, i) => `
     <tr>
@@ -3298,10 +3340,19 @@ function setCisternaUI(c) {
   set('cis-Lc', c.Lc); set('cis-Ac', c.Ac); set('cis-profC', c.profC); set('cis-eMuroC', c.eMuroC); set('cis-eLosaC', c.eLosaC);
   if (c.castillo) { set('cis-cn', c.castillo.n); set('cis-ca', c.castillo.a); set('cis-cb', c.castillo.b); set('cis-cnv', c.castillo.nv); set('cis-csep', c.castillo.sep); cisterna._cdia = c.castillo.dia; cisterna._cest = c.castillo.est; }
   if (c.dala) { set('cis-dn', c.dala.n); set('cis-da', c.dala.a); set('cis-db', c.dala.b); set('cis-dnv', c.dala.nv); set('cis-dsep', c.dala.sep); cisterna._ddia = c.dala.dia; cisterna._dest = c.dala.est; }
-  if (c.muro) cisterna.muro = c.muro;
+  const migMuro = arr => (arr || []).map(m => ({
+    nombre: m.nombre, sentido: m.sentido, dia: m.dia, sep: m.sep,
+    bastOn: m.bastOn != null ? m.bastOn : false, bastDia: m.bastDia || m.dia,
+    bastSep: m.bastSep != null ? m.bastSep : 0.33, bastLargo: m.bastLargo != null ? m.bastLargo : 1.1,
+  }));
+  if (c.muroLargo) cisterna.muroLargo = migMuro(c.muroLargo);
+  else if (c.muro) cisterna.muroLargo = migMuro(c.muro); // compat formato viejo
+  if (c.muroCorto) cisterna.muroCorto = migMuro(c.muroCorto);
+  else if (c.muro) cisterna.muroCorto = migMuro(c.muro);
   if (c.losa) cisterna.losa = c.losa;
   // re-render selects con valores cargados
-  document.getElementById('cis-muro-body').innerHTML = '';
+  document.getElementById('cis-muroL-body').innerHTML = '';
+  document.getElementById('cis-muroC-body').innerHTML = '';
   document.getElementById('cis-losa-body').innerHTML = '';
   ['cis-cdia', 'cis-cest', 'cis-ddia', 'cis-dest'].forEach(id => { const s = document.getElementById(id); if (s) s.innerHTML = ''; });
   renderCisternaArmado();
